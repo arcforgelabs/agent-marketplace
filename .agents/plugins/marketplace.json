@@ -1,0 +1,20 @@
+{
+  "name": "arc-forge",
+  "interface": {
+    "displayName": "Arc Forge"
+  },
+  "plugins": [
+    {
+      "name": "field",
+      "source": {
+        "source": "local",
+        "path": "./plugins/field"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

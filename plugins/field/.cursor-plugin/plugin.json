@@ -1,0 +1,11 @@
+{
+  "name": "field",
+  "displayName": "Field",
+  "version": "0.1.0",
+  "description": "Manage Field jobs, quotes, invoices, email templates, and catalog workflows.",
+  "license": "MIT",
+  "keywords": ["field", "quotes", "invoices", "earthworks"],
+  "author": {
+    "name": "Arc Forge Labs"
+  }
+}
