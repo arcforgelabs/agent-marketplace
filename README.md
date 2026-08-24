@@ -11,7 +11,7 @@ codex plugin marketplace add arcforgelabs/agent-marketplace
 codex plugin add field@arc-forge-agents
 ```
 
-Start a new Codex thread and ask: **Set up Field for me.**
+Start a new Codex task and ask: **Set up Field for me and verify the connection.**
 
 ## Claude Code
 
@@ -20,7 +20,7 @@ Start a new Codex thread and ask: **Set up Field for me.**
 /plugin install field@arc-forge-agents
 ```
 
-Run `/reload-plugins` when prompted, then ask: **Set up Field for me.**
+Run `/reload-plugins` when prompted, then ask: **Set up Field for me and verify the connection.**
 
 ## Cursor
 
@@ -31,7 +31,7 @@ https://github.com/arcforgelabs/agent-marketplace
 ```
 
 Publish **Field** as Optional, Default On, or Required. Developers will find it in **Customize →
-Plugins**. Start a new Agent conversation and ask: **Set up Field for me.**
+Plugins**. Start a new Agent conversation and ask: **Set up Field for me and verify the connection.**
 
 ## Authenticate Field
 
@@ -43,6 +43,17 @@ field auth login --url https://field.embarkearthworks.au
 
 Paste the service key into the hidden prompt. The key is stored locally at
 `~/.config/field/token` and does not need to be included in a Codex conversation.
+
+Verify the handoff without exposing the key:
+
+```bash
+field auth status
+field email-templates list
+```
+
+The first command must identify the expected Field service account. The second must return the
+live template catalogue. If either fails, keep the task open and repair setup before operational
+work begins.
 
 ## Updates
 
