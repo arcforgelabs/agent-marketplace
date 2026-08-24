@@ -1,12 +1,12 @@
 {
-  "name": "arc-forge",
+  "name": "arc-forge-agents",
   "owner": {
     "name": "Arc Forge Labs",
     "email": "support@arcforge.au"
   },
   "metadata": {
     "description": "Arc Forge agent tools and operating skills",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "pluginRoot": "plugins"
   },
   "plugins": [
@@ -14,7 +14,7 @@
       "name": "field",
       "source": "field",
       "description": "Manage Field jobs, quotes, invoices, email templates, and catalog workflows",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "Arc Forge Labs"
       },

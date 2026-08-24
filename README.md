@@ -8,7 +8,7 @@ native marketplace manifest.
 
 ```bash
 codex plugin marketplace add arcforgelabs/agent-marketplace
-codex plugin add field@arc-forge
+codex plugin add field@arc-forge-agents
 ```
 
 Start a new Codex thread and ask: **Set up Field for me.**
@@ -17,7 +17,7 @@ Start a new Codex thread and ask: **Set up Field for me.**
 
 ```text
 /plugin marketplace add arcforgelabs/agent-marketplace
-/plugin install field@arc-forge
+/plugin install field@arc-forge-agents
 ```
 
 Run `/reload-plugins` when prompted, then ask: **Set up Field for me.**
@@ -46,8 +46,8 @@ Paste the service key into the hidden prompt. The key is stored locally at
 
 ## Updates
 
-- Codex: `codex plugin marketplace upgrade arc-forge`, then reinstall/update Field.
-- Claude Code: `/plugin marketplace update arc-forge`, then update Field in `/plugin`.
+- Codex: `codex plugin marketplace upgrade arc-forge-agents`, then reinstall/update Field.
+- Claude Code: `/plugin marketplace update arc-forge-agents`, then update Field in `/plugin`.
 - Cursor: enable Auto Refresh on the imported GitHub marketplace.
 
 Open a new agent conversation after installing or updating so the refreshed skill is loaded.
@@ -56,5 +56,6 @@ Open a new agent conversation after installing or updating so the refreshed skil
 
 - **Field** — jobs, quotes, invoices, email templates, catalog, and production workflows.
 
-The catalogs appear as **Arc Forge** and the installed plugin appears as **Field** in all three
-hosts. No production credentials, customer records, or runtime data belong in this repository.
+Codex Desktop and Cursor display the catalog as **Arc Forge**. Claude Code uses the unique catalog
+identifier **arc-forge-agents**. The installed plugin appears as **Field** in all three hosts. No
+production credentials, customer records, or runtime data belong in this repository.

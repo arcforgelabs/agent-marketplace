@@ -1,5 +1,5 @@
 {
-  "name": "arc-forge",
+  "name": "arc-forge-agents",
   "displayName": "Arc Forge",
   "owner": {
     "name": "Arc Forge Labs",
@@ -7,7 +7,7 @@
   },
   "metadata": {
     "description": "Arc Forge agent tools and operating skills",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "pluginRoot": "plugins"
   },
   "plugins": [
