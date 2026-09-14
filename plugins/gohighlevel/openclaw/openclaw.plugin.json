@@ -1,0 +1,115 @@
+{
+  "id": "arcforgelabs-gohighlevel",
+  "name": "GoHighLevel by Arc Forge",
+  "description": "Unofficial HighLevel CRM tools for one sub-account: contacts, conversations, opportunities, calendars, workflows, and more.",
+  "version": "0.2.0",
+  "configSchema": {
+    "type": "object",
+    "required": [
+      "locationId",
+      "privateIntegrationToken"
+    ],
+    "properties": {
+      "locationId": {
+        "type": "string",
+        "description": "HighLevel sub-account location ID. Pin this plugin to one location."
+      },
+      "privateIntegrationToken": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "provider",
+              "id"
+            ],
+            "properties": {
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "env"
+                  },
+                  {
+                    "type": "string",
+                    "const": "file"
+                  },
+                  {
+                    "type": "string",
+                    "const": "exec"
+                  }
+                ]
+              },
+              "provider": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ],
+        "description": "Sub-account PIT. Use a host-managed SecretRef, never chat or source control."
+      },
+      "timezone": {
+        "type": "string",
+        "description": "IANA timezone for this location. Optional; no regional default. Use timestamps with explicit UTC offsets."
+      }
+    },
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "skills": [
+    "./skills"
+  ],
+  "configContracts": {
+    "secretInputs": {
+      "paths": [
+        {
+          "path": "privateIntegrationToken",
+          "ownerKind": "capability",
+          "expected": "string"
+        }
+      ]
+    }
+  },
+  "uiHints": {
+    "locationId": {
+      "label": "Location ID",
+      "help": "HighLevel sub-account location ID. This plugin stays pinned to one location."
+    },
+    "privateIntegrationToken": {
+      "label": "Private Integration Token",
+      "sensitive": true,
+      "help": "Sub-account PIT. Store it as a SecretRef; never paste it into chat, git, or shell history."
+    },
+    "timezone": {
+      "label": "Timezone",
+      "help": "IANA timezone for this location. Optional; no regional default. Use timestamps with explicit UTC offsets."
+    }
+  },
+  "contracts": {
+    "tools": [
+      "ghl_status",
+      "ghl_contacts",
+      "ghl_notes",
+      "ghl_tasks",
+      "ghl_conversations",
+      "ghl_messages",
+      "ghl_opportunities",
+      "ghl_pipelines",
+      "ghl_custom_fields",
+      "ghl_calendars",
+      "ghl_workflows",
+      "ghl_users",
+      "ghl_tags"
+    ]
+  }
+}

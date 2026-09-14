@@ -1,6 +1,6 @@
 {
   "name": "field",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Operate Field jobs, quotes, invoices, email templates, and catalog workflows.",
   "author": {
     "name": "Arc Forge Labs",
@@ -9,5 +9,10 @@
   "homepage": "https://github.com/arcforgelabs/agent-marketplace/tree/main/plugins/field",
   "repository": "https://github.com/arcforgelabs/agent-marketplace",
   "license": "MIT",
-  "keywords": ["field", "quotes", "invoices", "earthworks"]
+  "keywords": [
+    "field",
+    "quotes",
+    "invoices",
+    "earthworks"
+  ]
 }

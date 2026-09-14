@@ -1,6 +1,6 @@
 {
   "name": "field",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Operate Field jobs, quotes, invoices, email templates, and catalog workflows from Codex.",
   "author": {
     "name": "Arc Forge Labs",
@@ -10,7 +10,12 @@
   "homepage": "https://github.com/arcforgelabs/agent-marketplace/tree/main/plugins/field",
   "repository": "https://github.com/arcforgelabs/agent-marketplace",
   "license": "MIT",
-  "keywords": ["field", "quotes", "invoices", "earthworks"],
+  "keywords": [
+    "field",
+    "quotes",
+    "invoices",
+    "earthworks"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Field",
@@ -18,7 +23,10 @@
     "longDescription": "Give Codex an authenticated Field CLI and operational guidance for jobs, quote revisions, milestone invoices, email templates, and catalog workflows.",
     "developerName": "Arc Forge Labs",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
     "websiteURL": "https://github.com/arcforgelabs/agent-marketplace/tree/main/plugins/field",
     "defaultPrompt": [
       "Show me the current Field email templates.",

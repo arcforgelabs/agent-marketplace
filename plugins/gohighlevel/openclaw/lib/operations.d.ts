@@ -1,0 +1,22 @@
+import type { GhlClient } from "./client.js";
+import { type ResolvedGhlConfig } from "./config.js";
+type Dict = Record<string, unknown>;
+export declare function locationStatus(client: GhlClient, config: ResolvedGhlConfig, _params?: Dict): Promise<{
+    connected: boolean;
+    locationId: string;
+    timezone: {} | null;
+    locationName: {} | null;
+}>;
+export declare function contacts(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function notes(client: GhlClient, _config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function tasks(client: GhlClient, _config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function conversations(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function messages(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function opportunities(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function pipelines(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function customFields(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function calendars(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function workflows(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function users(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export declare function tags(client: GhlClient, config: ResolvedGhlConfig, params: Dict): Promise<unknown>;
+export {};

@@ -79,7 +79,7 @@ async function main() {
   if (!pathEntries.includes(binDir)) {
     console.log(`  PATH note: add ${binDir} to PATH, then open a new terminal`);
   }
-  console.log("Next: field auth login --url https://field.embarkearthworks.au");
+  console.log("Next: field auth login --url https://field.example.com");
 }
 
 main().catch((error) => {

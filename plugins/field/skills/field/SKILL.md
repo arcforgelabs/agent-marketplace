@@ -26,9 +26,15 @@ node "<plugin-root>/scripts/install-field-cli.js"
 
 The installer writes only to a user-writable command prefix and prints the installed launcher path.
 
+## Account context
+
+An optional private profile may be supplied by the operator outside the installed plugin directory. It must identify the intended Field service URL and account, plus any confirmed business-specific rules. Check that it matches the selected connection before use; do not search other customers' profiles. No profile is required for generic guidance.
+
+The public package contains no account profile. Never write customer IDs, endpoints, workflows, customer records or credentials into the installed skill. Plugin updates must not overwrite private profiles. Credentials remain in the host-supported credential store.
+
 ## Authentication
 
-Production is `https://field.embarkearthworks.au`.
+Use the Field service URL supplied by the operator or the selected private account profile. Never assume a particular customer deployment.
 
 Check authentication before an operational request:
 
@@ -39,7 +45,7 @@ field auth status
 If authentication is missing, tell the user to run this in their own terminal:
 
 ```bash
-field auth login --url https://field.embarkearthworks.au
+field auth login --url https://field.example.com
 ```
 
 The prompt hides the service key and stores it at `~/.config/field/token` with user-only

@@ -27,7 +27,7 @@ test("marketplace manifests expose Arc Forge / Field across all supported hosts"
   for (const hostDir of [".codex-plugin", ".claude-plugin", ".cursor-plugin"]) {
     const manifest = JSON.parse(await readFile(join(pluginRoot, hostDir, "plugin.json"), "utf8"));
     assert.equal(manifest.name, "field");
-    assert.equal(manifest.version, "0.1.1");
+    assert.equal(manifest.version, "0.1.2");
   }
 });
 

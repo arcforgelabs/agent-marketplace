@@ -159,7 +159,7 @@ async function readOptionalBody(args) {
 
 async function request(method, path, { body = null, headers = {} } = {}) {
   if (!authToken) {
-    throw new Error("Field is not authenticated. Run: field auth login --url https://field.embarkearthworks.au");
+    throw new Error("Field is not authenticated. Run: field auth login --url https://field.example.com");
   }
   const requestHeaders = {
     Authorization: `Bearer ${authToken}`,

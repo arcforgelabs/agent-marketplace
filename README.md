@@ -1,8 +1,6 @@
 # Arc Forge Agent Marketplace
 
-Public agent plugins maintained by [Arc Forge Labs](https://github.com/arcforgelabs). One
-repository distributes the same plugin payload to Codex, Claude Code, and Cursor using each host's
-native marketplace manifest.
+Public agent plugins maintained by [Arc Forge Labs](https://github.com/arcforgelabs). One repository distributes self-contained packages through host-native catalogs and release artifacts. Shared portable payloads serve Codex, Claude Code and Cursor; native OpenClaw adapters are separate assemblies where needed.
 
 ## Codex
 
@@ -38,7 +36,7 @@ Plugins**. Start a new Agent conversation and ask: **Set up Field for me and ver
 The agent installs the bundled `field` launcher. Authenticate once from your own terminal:
 
 ```bash
-field auth login --url https://field.embarkearthworks.au
+field auth login --url https://field.example.com
 ```
 
 Paste the service key into the hidden prompt. The key is stored locally at
@@ -70,3 +68,21 @@ Open a new agent conversation after installing or updating so the refreshed skil
 Codex Desktop and Cursor display the catalog as **Arc Forge**. Claude Code uses the unique catalog
 identifier **arc-forge-agents**. The installed plugin appears as **Field** in all three hosts. No
 production credentials, customer records, or runtime data belong in this repository.
+
+## OpenClaw: GoHighLevel
+
+Unofficial integration by Arc Forge Labs, package `@arcforgelabs/openclaw-gohighlevel`,
+native ID `arcforgelabs-gohighlevel`, skill `gohighlevel`, tools `ghl_*`.
+See [the self-contained package](plugins/gohighlevel/openclaw/README.md).
+This native package is not advertised as a Codex/Claude runtime integration.
+ClawHub availability is not assumed: until publication is confirmed use the GitHub
+release artifact or an explicit local package installation.
+
+## Release structure and private profiles
+
+- Public packages contain generic code, skills, fictional examples and blank templates only.
+- Actual account endpoints, IDs, mappings and business rules are private profiles delivered separately to authorised workspaces. Credentials and customer records do not belong in profiles.
+- Plugin installs and upgrades never overwrite or fetch a populated profile.
+- Source implementations remain authoritative; generated packages record provenance.
+- `plugins/field` retains its established portable install path. New capability assemblies use `plugins/<capability>/<runtime>` where their runtime needs differ.
+- Root host catalogs list only implemented compatible packages. A directory name is not a compatibility claim.

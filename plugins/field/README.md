@@ -7,7 +7,7 @@ connection.**
 Codex will run the bundled installer. Then authenticate once in your own terminal:
 
 ```bash
-field auth login --url https://field.embarkearthworks.au
+field auth login --url https://field.example.com
 ```
 
 Useful checks:
