@@ -1,87 +1,77 @@
 # Arc Forge Agent Marketplace
 
-Public agent plugins maintained by [Arc Forge Labs](https://github.com/arcforgelabs). One repository distributes self-contained packages through host-native catalogs and release artifacts. Shared portable payloads serve Codex, Claude Code and Cursor; native OpenClaw adapters are separate assemblies where needed.
+Agent integrations, tools and skills maintained by [Arc Forge Labs](https://github.com/arcforgelabs), distributed for **OpenClaw, Codex, Claude Code and Cursor**.
 
-## Codex
+Choose an integration and a supported host below. Each package includes its own installation, authentication and usage instructions; not every integration supports every host.
+
+## Available integrations
+
+| Integration | Supported hosts | Package and setup |
+| --- | --- | --- |
+| **GoHighLevel** | OpenClaw | [CRM, conversations, opportunities, calendars and workflows](plugins/gohighlevel/openclaw/README.md) |
+| **Field** | Codex, Claude Code, Cursor | [Jobs, quotes, invoices, email templates and catalog workflows](plugins/field/README.md) |
+
+GoHighLevel is an unofficial integration developed by Arc Forge Labs, not affiliated with or endorsed by HighLevel.
+
+## Install by host
+
+### OpenClaw
+
+Native OpenClaw packages are distributed individually through release artifacts and ClawHub, not through the other hosts' marketplace catalogs.
+
+Start with the [GoHighLevel package instructions](plugins/gohighlevel/openclaw/README.md) or its [0.2.0 source release](https://github.com/arcforgelabs/agent-marketplace/releases/tag/gohighlevel-v0.2.0). ClawHub submission has been accepted but registry review is pending; a public registry installation is not yet claimed. The source release has no binary attachment.
+
+### Codex
+
+Register this catalog:
 
 ```bash
 codex plugin marketplace add arcforgelabs/agent-marketplace
-codex plugin add field@arc-forge-agents
 ```
 
-Start a new Codex task and ask: **Set up Field for me and verify the connection.**
+Select a compatible plugin from the table above and follow its package instructions. The catalog identifier is `arc-forge-agents`.
 
-## Claude Code
+### Claude Code
+
+Register this catalog:
 
 ```text
 /plugin marketplace add arcforgelabs/agent-marketplace
-/plugin install field@arc-forge-agents
 ```
 
-Run `/reload-plugins` when prompted, then ask: **Set up Field for me and verify the connection.**
+Select a compatible plugin in `/plugin`, then follow its package instructions. Run `/reload-plugins` when prompted. The catalog identifier is `arc-forge-agents`.
 
-## Cursor
+### Cursor
 
-In the team dashboard, open **Settings → Plugins → Import**, then import:
+In the team dashboard, open **Settings → Plugins → Import** and import:
 
 ```text
 https://github.com/arcforgelabs/agent-marketplace
 ```
 
-Publish **Field** as Optional, Default On, or Required. Developers will find it in **Customize →
-Plugins**. Start a new Agent conversation and ask: **Set up Field for me and verify the connection.**
+Choose a compatible plugin and its team availability policy. Developers find published plugins in **Customize → Plugins**. Follow the selected package's setup instructions.
 
-## Authenticate Field
+## Authentication and account context
 
-The agent installs the bundled `field` launcher. Authenticate once from your own terminal:
+Authentication is integration-specific; use the selected package's instructions. Do not paste credentials into agent conversations or commit them to this repository.
 
-```bash
-field auth login --url https://field.example.com
-```
-
-Paste the service key into the hidden prompt. The key is stored locally at
-`~/.config/field/token` and does not need to be included in a Codex conversation.
-
-Verify the handoff without exposing the key:
-
-```bash
-field auth status
-field email-templates list
-```
-
-The first command must identify the expected Field service account. The second must return the
-live template catalogue. If either fails, keep the task open and repair setup before operational
-work begins.
+Public packages contain generic code, skills, fictional examples and blank templates only. Actual account endpoints, IDs, mappings and business rules belong in private profiles delivered separately to authorised workspaces. Credentials and customer records do not belong in those profiles. Installs and upgrades must not overwrite or automatically fetch a populated profile.
 
 ## Updates
 
-- Codex: `codex plugin marketplace upgrade arc-forge-agents`, then reinstall/update Field.
-- Claude Code: `/plugin marketplace update arc-forge-agents`, then update Field in `/plugin`.
-- Cursor: enable Auto Refresh on the imported GitHub marketplace.
+- **OpenClaw:** follow the package's release and update instructions for the source you installed.
+- **Codex:** run `codex plugin marketplace upgrade arc-forge-agents`, then update the selected plugin.
+- **Claude Code:** run `/plugin marketplace update arc-forge-agents`, then update the selected plugin in `/plugin`.
+- **Cursor:** enable Auto Refresh on the imported GitHub marketplace.
 
-Open a new agent conversation after installing or updating so the refreshed skill is loaded.
+Open a new agent conversation after installing or updating to load refreshed skills.
 
-## Plugins
+## How this repository is organised
 
-- **Field** — jobs, quotes, invoices, email templates, catalog, and production workflows.
+This is a public distribution repository, not a second implementation source. Maintained source projects produce self-contained release packages with provenance.
 
-Codex Desktop and Cursor display the catalog as **Arc Forge**. Claude Code uses the unique catalog
-identifier **arc-forge-agents**. The installed plugin appears as **Field** in all three hosts. No
-production credentials, customer records, or runtime data belong in this repository.
+- `plugins/<capability>/<runtime>/` contains an assembly when a host needs a distinct runtime, such as `plugins/gohighlevel/openclaw/`.
+- `plugins/field/` retains its established portable package path, shared by Codex, Claude Code and Cursor.
+- Root host catalogs list only implemented compatible packages; a directory or manifest alone is not a compatibility claim.
 
-## OpenClaw: GoHighLevel
-
-Unofficial integration by Arc Forge Labs, package `@arcforgelabs/openclaw-gohighlevel`,
-native ID `arcforgelabs-gohighlevel`, skill `gohighlevel`, tools `ghl_*`.
-See [the self-contained package](plugins/gohighlevel/openclaw/README.md).
-This native package is not advertised as a Codex/Claude runtime integration.
-The [GHL 0.2.0 source release](https://github.com/arcforgelabs/agent-marketplace/releases/tag/gohighlevel-v0.2.0) includes source-install instructions. ClawHub submission is accepted but review is pending; registry installation is not yet claimed. No binary release attachment is available.
-
-## Release structure and private profiles
-
-- Public packages contain generic code, skills, fictional examples and blank templates only.
-- Actual account endpoints, IDs, mappings and business rules are private profiles delivered separately to authorised workspaces. Credentials and customer records do not belong in profiles.
-- Plugin installs and upgrades never overwrite or fetch a populated profile.
-- Source implementations remain authoritative; generated packages record provenance.
-- `plugins/field` retains its established portable install path. New capability assemblies use `plugins/<capability>/<runtime>` where their runtime needs differ.
-- Root host catalogs list only implemented compatible packages. A directory name is not a compatibility claim.
+See [Contributing](CONTRIBUTING.md) for release maintenance. Report problems through [GitHub Issues](https://github.com/arcforgelabs/agent-marketplace/issues), including the integration, version and host—but no credentials or customer data.
