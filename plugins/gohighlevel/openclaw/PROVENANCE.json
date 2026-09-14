@@ -1,9 +1,9 @@
 {
-  "sourceCommit": "18547a92a8c3e261a1989b0cf05923f342133e52",
+  "sourceCommit": "e1559835b5780a937455a3be2f0fd017296bf5a0",
   "sourcePath": "plugins/gohighlevel",
   "files": {
     "LICENSE": "04184cfab831fcae8ff9843374a03e17f9d7ca61f362fcaca37d29b83dc7c3b2",
-    "README.md": "1f8e67d2cf524ab1bff067ee2c22d83ba1c00877bd67e36f3afe10bb67199b85",
+    "README.md": "42542b6feb150b9b43ae467f9c2196faff137aa9362a1feb19e18abc4acf6096",
     "lib/cli.d.ts": "43e818adf60173644896298637f47b01d5819b17eda46eaa32d0c7d64724d012",
     "lib/cli.js": "02534d53a239fefed56399358881c7315d49fecaf87caad9efa2a301540b1588",
     "lib/client.d.ts": "0842f76cb6ae6515f2673339f3296dc84fe5a7861932f4ab192b0e1ea25d9525",
@@ -14,8 +14,8 @@
     "lib/index.js": "068e35c51b854d47124edd1ab97a2458e80be7eb189fd52e02d4c1e5c399ce33",
     "lib/operations.d.ts": "c9e55fd086fe56d5c356f5cf922393df3398f26d4e2d270367f67081127bdd61",
     "lib/operations.js": "9ead7ce3b5a75b51b4f1a742176b287ccbc92131404cc11b9b38e2bf48368ac8",
-    "openclaw.plugin.json": "235c65c3f589d87318b065e4e113e37a416eda20a38563f976811a82bd7c5b31",
-    "package.json": "439598e3bc7fdb5ed21480dd178e5ba28c517c94c1087541100d92d18328d815",
+    "openclaw.plugin.json": "07418f2b1251b7deb5026a2f7a96fc971749b5c8959cea2f152171f878d2da26",
+    "package.json": "a6f19d1be03138a9bb60741f63f536cdf9e2d5c8537d5e5f6d33453e2f392ebc",
     "scripts/augment-manifest.mjs": "e8790a6f4d81bbd4c506351bcfb883503bf78423fe51fb6d1cacd971e4a1de8a",
     "skills/gohighlevel/ACCOUNT.template.md": "ecc692e7697dcb3f1d54097879955f5411e516be1afdb0938046b0594cfb3465",
     "skills/gohighlevel/SKILL.md": "fa0c3bafc9126f6bd9e64d2b611404811e03bad921788016f8bc6bf1147bd792",

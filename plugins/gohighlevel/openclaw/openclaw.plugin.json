@@ -2,7 +2,7 @@
   "id": "arcforgelabs-gohighlevel",
   "name": "GoHighLevel by Arc Forge",
   "description": "Unofficial HighLevel CRM tools for one sub-account: contacts, conversations, opportunities, calendars, workflows, and more.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "configSchema": {
     "type": "object",
     "required": [

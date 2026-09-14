@@ -8,7 +8,7 @@ Unofficial HighLevel integration for OpenClaw. Independently developed by Arc Fo
 - Native plugin ID: `arcforgelabs-gohighlevel`
 - Skill: `gohighlevel`; tools: `ghl_*`
 - One sub-account PIT; full supported read/write operations. No agency provisioning.
-- Tested host: OpenClaw 2026.9.3. Other host versions are not yet verified.
+- Tested hosts: OpenClaw 2026.9.3 and 2026.9.4. Other host versions are not yet verified.
 
 ## Install
 
