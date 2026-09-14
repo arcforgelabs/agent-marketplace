@@ -1,6 +1,6 @@
 # Maintaining the marketplace
 
-This repository distributes integrations for OpenClaw, Codex, Claude Code and Cursor. Keep its overview and GitHub description host-neutral and integration-neutral. Put service-specific setup in the corresponding package README.
+This repository distributes agent integrations. Keep its overview and GitHub description host-neutral and integration-neutral. Put service-specific setup in the corresponding package README.
 
 ## Source and release boundaries
 
@@ -17,7 +17,7 @@ Maintain implementations in their canonical source repositories. Generate or cop
 4. Run `npm test` here and the applicable host package validators and installation checks.
 5. Inspect the complete payload for credentials, customer records and populated account profiles. Only generic guidance and blank templates belong in public packages.
 6. Preserve or update provenance when changing a generated payload. Follow the source release process rather than editing generated files independently.
-7. Update the available-integration table and package instructions if support or installation changes. Do not make one integration's instructions the marketplace-wide default.
+7. Keep compatibility, installation and release status in the relevant package documentation, not the root README. Do not make one integration's instructions the marketplace-wide default.
 8. Publish through the appropriate delivery target. A ClawHub submission or successful dry run is not proof of public availability; report registry review status accurately.
 
 Shared portable payloads may carry multiple host manifests. Split assemblies only when their runtime needs differ. Actual account profiles are separately authenticated private delivery and must never be bundled in public releases or overwritten by plugin upgrades.
