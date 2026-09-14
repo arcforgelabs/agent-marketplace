@@ -75,8 +75,7 @@ Unofficial integration by Arc Forge Labs, package `@arcforgelabs/openclaw-gohigh
 native ID `arcforgelabs-gohighlevel`, skill `gohighlevel`, tools `ghl_*`.
 See [the self-contained package](plugins/gohighlevel/openclaw/README.md).
 This native package is not advertised as a Codex/Claude runtime integration.
-ClawHub availability is not assumed: until publication is confirmed use the GitHub
-release artifact or an explicit local package installation.
+The [GHL 0.2.0 source release](https://github.com/arcforgelabs/agent-marketplace/releases/tag/gohighlevel-v0.2.0) includes source-install instructions. ClawHub submission is accepted but review is pending; registry installation is not yet claimed. No binary release attachment is available.
 
 ## Release structure and private profiles
 
