@@ -6,8 +6,10 @@ Install this directory with `openclaw plugins install /absolute/path/to/package`
 `plugins.entries.arcforgelabs-hubspot.config` with a host-managed SecretRef:
 
 ```json
-{"accessToken":{"source":"env","provider":"default","id":"HUBSPOT_TOKEN"}}
+{"accessToken":{"source":"store","provider":"default","id":"HUBSPOT_TOKEN"}}
 ```
+
+`source` must accept `env`, `file`, `exec`, and `store`. One-shot Gateway installs use the protected `store` acceptor; omitting `store` rejects that credential.
 
 The optional `portalId` pins operator context and `timezone` is validated when supplied; no regional
 timezone is assumed. The CLI is backed by the same implementation:

@@ -9,5 +9,7 @@ describe("release payload policy", () => {
     const manifest = readFileSync(resolve(import.meta.dirname, "../openclaw.plugin.json"), "utf8");
     expect(manifest).not.toMatch(/HighLevel|privateIntegrationToken|locationId/);
     expect(manifest).toContain('"path": "accessToken"');
+    expect(manifest).toContain('"const": "store"');
+    expect(manifest).toContain('"const": "env"');
   });
 });

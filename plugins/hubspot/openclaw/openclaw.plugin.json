@@ -2,7 +2,7 @@
   "id": "arcforgelabs-hubspot",
   "name": "HubSpot by Arc Forge",
   "description": "Unofficial HubSpot CRM integration maintained by Arc Forge Labs; not affiliated with or endorsed by HubSpot, Inc.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "configSchema": {
     "type": "object",
     "required": [
@@ -36,6 +36,10 @@
                   {
                     "type": "string",
                     "const": "exec"
+                  },
+                  {
+                    "type": "string",
+                    "const": "store"
                   }
                 ]
               },
@@ -49,7 +53,7 @@
             "additionalProperties": false
           }
         ],
-        "description": "HubSpot private app token. Use a host-managed SecretRef, never chat or source control."
+        "description": "HubSpot private app or service-key token. Prefer a host-managed SecretRef including source store."
       },
       "portalId": {
         "type": "string",

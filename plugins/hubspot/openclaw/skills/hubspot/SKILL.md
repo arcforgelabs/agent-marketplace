@@ -5,7 +5,9 @@ Unofficial integration maintained by Arc Forge Labs; not affiliated with or endo
 ## Configuration
 
 Set `plugins.entries.arcforgelabs-hubspot.config.accessToken` to a host-managed
-SecretRef, for example `{"source":"env","provider":"default","id":"HUBSPOT_TOKEN"}`.
+SecretRef. One-shot Gateway installs use the protected store:
+`{"source":"store","provider":"default","id":"HUBSPOT_TOKEN"}`.
+`env`/`file`/`exec` remain valid. A schema that omits `store` is a release blocker.
 `portalId` is optional and `timezone` is optional with no regional default.
 
 A private app intended for the full toolset generally needs `crm.objects.contacts.read/write`,
