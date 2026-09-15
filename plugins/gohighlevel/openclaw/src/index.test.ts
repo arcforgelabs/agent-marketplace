@@ -23,4 +23,10 @@ describe("gohighlevel plugin", () => {
     expect(getToolPluginMetadata(entry)?.id).toBe("arcforgelabs-gohighlevel");
     expect(getToolPluginMetadata(entry)?.tools.map((tool) => tool.name)).toEqual(expectedTools);
   });
+  it("accepts protected store SecretRefs", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const manifest = readFileSync(resolve(import.meta.dirname, "../openclaw.plugin.json"), "utf8");
+    expect(manifest).toContain('"const": "store"');
+  });
 });

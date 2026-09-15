@@ -9,7 +9,7 @@ const configSchema = Type.Object({
     }),
     privateIntegrationToken: Type.Union([
         Type.String({ minLength: 1 }),
-        Type.Object({ source: Type.Union([Type.Literal("env"), Type.Literal("file"), Type.Literal("exec")]), provider: Type.String(), id: Type.String() }, { additionalProperties: false }),
+        Type.Object({ source: Type.Union([Type.Literal("env"), Type.Literal("file"), Type.Literal("exec"), Type.Literal("store")]), provider: Type.String(), id: Type.String() }, { additionalProperties: false }),
     ], { description: "Sub-account PIT. Use a host-managed SecretRef, never chat or source control." }),
     timezone: Type.Optional(Type.String({
         description: "IANA timezone for this location. Optional; no regional default. Use timestamps with explicit UTC offsets.",
