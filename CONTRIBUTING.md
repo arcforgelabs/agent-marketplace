@@ -7,6 +7,7 @@ This repository distributes agent integrations. Keep its overview and GitHub des
 Maintain implementations in their canonical source repositories. Generate or copy reviewed release payloads here; do not maintain a divergent implementation in the marketplace.
 
 - **GoHighLevel / OpenClaw:** canonical source and staging tooling live in `arcforgelabs/arc-forge-tools`. Follow its `docs/architecture/plugin-publishing.md` and `forge-tools plugin stage gohighlevel` entry point. The package lives at `plugins/gohighlevel/openclaw/` and records source provenance.
+- **HubSpot / OpenClaw:** canonical source and staging tooling live in `arcforgelabs/arc-forge-tools`. Follow its `docs/architecture/plugin-publishing.md` and `forge-tools plugin stage hubspot` entry point. The package lives at `plugins/hubspot/openclaw/` and records source provenance.
 - **Field / portable:** the CLI comes from `arcforgelabs/arc-forge-field/scripts/field-cli.js`. Keep the reviewed production-compatible copy at `plugins/field/scripts/field-cli.js`; the public package must not require access to the private application repository.
 
 ## Release checks

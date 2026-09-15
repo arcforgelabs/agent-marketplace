@@ -1,0 +1,118 @@
+{
+  "id": "arcforgelabs-hubspot",
+  "name": "HubSpot by Arc Forge",
+  "description": "Unofficial HubSpot CRM integration maintained by Arc Forge Labs; not affiliated with or endorsed by HubSpot, Inc.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "required": [
+      "accessToken"
+    ],
+    "properties": {
+      "accessToken": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "provider",
+              "id"
+            ],
+            "properties": {
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "env"
+                  },
+                  {
+                    "type": "string",
+                    "const": "file"
+                  },
+                  {
+                    "type": "string",
+                    "const": "exec"
+                  }
+                ]
+              },
+              "provider": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ],
+        "description": "HubSpot private app token. Use a host-managed SecretRef, never chat or source control."
+      },
+      "portalId": {
+        "type": "string",
+        "pattern": "^[0-9]+$"
+      },
+      "timezone": {
+        "type": "string",
+        "description": "Optional IANA timezone; no default."
+      }
+    },
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "skills": [
+    "./skills"
+  ],
+  "configContracts": {
+    "secretInputs": {
+      "paths": [
+        {
+          "path": "accessToken",
+          "ownerKind": "capability",
+          "expected": "string"
+        }
+      ]
+    }
+  },
+  "uiHints": {
+    "accessToken": {
+      "label": "Private app access token",
+      "sensitive": true,
+      "help": "HubSpot private app token. Store it as a SecretRef; never paste it into chat, git, or shell history."
+    },
+    "portalId": {
+      "label": "Portal ID",
+      "help": "Optional HubSpot portal ID. Digits only; used as operator context, not a second credential."
+    },
+    "timezone": {
+      "label": "Timezone",
+      "help": "IANA timezone for this portal. Optional; no regional default."
+    }
+  },
+  "contracts": {
+    "tools": [
+      "hs_status",
+      "hs_contacts",
+      "hs_companies",
+      "hs_deals",
+      "hs_tickets",
+      "hs_notes",
+      "hs_tasks",
+      "hs_emails",
+      "hs_calls",
+      "hs_meetings",
+      "hs_associations",
+      "hs_pipelines",
+      "hs_properties",
+      "hs_owners",
+      "hs_lists",
+      "hs_workflows",
+      "hs_objects"
+    ]
+  }
+}

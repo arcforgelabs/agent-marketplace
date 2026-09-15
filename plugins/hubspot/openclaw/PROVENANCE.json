@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "430ea8063eceaddb54e5c96f575cebb01aba3593",
+  "sourcePath": "plugins/hubspot",
+  "files": {
+    "LICENSE": "04184cfab831fcae8ff9843374a03e17f9d7ca61f362fcaca37d29b83dc7c3b2",
+    "README.md": "6943932065146a3e86eb6f75964af5b7d4770c6ebadf7af7ff4a012b35a8a438",
+    "lib/cli.d.ts": "43e818adf60173644896298637f47b01d5819b17eda46eaa32d0c7d64724d012",
+    "lib/cli.js": "e19ee2dae367da9f4361ffb0070dc3ca1ac20033f3e92456e524ae2c455f6f98",
+    "lib/client.d.ts": "c2c31cd874464106ad06a9131a585e5fd1f9b1d6d0bfc7b161c3e0c5eae6be50",
+    "lib/client.js": "1340c288c7604276e1d0959997aa284a64230053309369b62a60a9685caa7e75",
+    "lib/config.d.ts": "275e89e74965066689d8384a1728cb02d2711bb9fec5187a4f1857908d831237",
+    "lib/config.js": "16156a810abf9813342e7c5a4eef29ba9364db0cb585875a75def66a4056cbee",
+    "lib/index.d.ts": "84b33238011ee44b8593e96cad4e247fca96dd08e6e27d10a1dc54e52e83bdc1",
+    "lib/index.js": "0e7ad6a4816ab256e90b88212d30c8e1e4fd9a5a1dd7cb25dfda4dc5f069c611",
+    "lib/operations.d.ts": "40b6181c8d05f5ac56e7f6708c14d6bed26bbec894d6b2824208a8fcd35ca83b",
+    "lib/operations.js": "d45b10cddfa1afedf777b5d1f233b58e275884cdf86c1e967dcbd1bffbcc5d9a",
+    "openclaw.plugin.json": "155ed3fdd18e4a61631ade3cf40dda67ebb004ea665f11294feccde6d8b05208",
+    "package.json": "5861d8e3358bd99190ac87b71bce6ebfa4195ce65adfbbaed22935596e3d84b3",
+    "scripts/augment-manifest.mjs": "a7db80249badd9411c8019f4bb8b031ddc07448a218e398cacb38eb56e5a99d8",
+    "skills/hubspot/ACCOUNT.template.md": "03c04e221932e22a2fd14f7a45b0eeda1e18d9ee37983fed606c1fd8388d1f9f",
+    "skills/hubspot/SKILL.md": "88a812f5ec97a760e55585fd9f8876557601d7ec8ce8ecea7aa606e8006d599c",
+    "src/cli.ts": "58eca70c0ccdc6c8c12b5aa2c01bb84b986f87487c6bb799c82059ed78a34d4d",
+    "src/client.test.ts": "daa3802f2d2cc83eae05dce50705dc9e42b2ea184f23e3654a8780476085e22f",
+    "src/client.ts": "3b8d5ffed1ddd6f9d426fed5991ae8e27b0c50f695138486d43d9f394a9dbac8",
+    "src/config.ts": "48881a880ae7ebd9f267ea36d7c09648593ea1c7900c90c7e4b0da862d0ac9cf",
+    "src/index.test.ts": "ed55a9fe35f245110a24f5ae877975154b19d5435c8fb74a4230bc59a24be921",
+    "src/index.ts": "f26f85e52c7d5ece5698c436d7db782c71ad1e7b39241d9ed8593c2abad7b818",
+    "src/operations.ts": "7b1106f540b64f4e6b5fbb3cae3a09b5a2843b6d2e1e27aeb0001f9fdef5080a",
+    "src/release.test.ts": "a7226d07b11c22c433ebfa1700c9a3b50ec320187093bac454b196406f13d3a4",
+    "tsconfig.json": "5f746b5bf1c8c71c1fb65027d8f722ccfeaef577b5c615a07a60c1d8166b8f1b",
+    "vitest.config.ts": "4ab2b12124b2b30259a6e171daf67303a5cd8df7d8dfc1bb19b4afdd517325f0"
+  }
+}

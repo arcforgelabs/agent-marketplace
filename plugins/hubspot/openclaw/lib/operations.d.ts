@@ -1,0 +1,27 @@
+import type { HubSpotClient } from "./client.js";
+import { type ResolvedHubSpotConfig } from "./config.js";
+type D = Record<string, any>;
+export declare function status(c: HubSpotClient, cfg: ResolvedHubSpotConfig): Promise<{
+    connected: boolean;
+    portalId: any;
+    timeZone: any;
+    accountName: any;
+    companyName: any;
+}>;
+export declare const contacts: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const companies: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const deals: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const tickets: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const objects: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const notes: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const tasks: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const emails: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const calls: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare const meetings: (c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D) => Promise<any>;
+export declare function associations(c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D): Promise<any>;
+export declare function pipelines(c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D): Promise<any>;
+export declare function properties(c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D): Promise<any>;
+export declare function owners(c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D): Promise<any>;
+export declare function lists(c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D): Promise<any>;
+export declare function workflows(c: HubSpotClient, _cfg: ResolvedHubSpotConfig, p: D): Promise<any>;
+export {};
