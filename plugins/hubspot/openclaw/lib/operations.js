@@ -1,0 +1,104 @@
+import { capLimit, compact } from "./config.js";
+const OBJECTS = /^(?:[A-Za-z0-9_-]+)$/;
+const IDS = /^\d+$/;
+const s = (v) => typeof v === "string" && v.trim() ? v.trim() : undefined;
+function required(p, key, action) { const value = s(p[key]); if (!value)
+    throw new Error(`${key} is required for ${action}.`); return value; }
+function objectType(p) { const value = required(p, "objectType", "hs_objects"); if (!OBJECTS.test(value))
+    throw new Error("Invalid objectType."); return value; }
+function id(p, key = "id") { const value = required(p, key, "this operation"); if (!IDS.test(value))
+    throw new Error(`Invalid ${key}; IDs must contain digits only.`); return value; }
+function props(p) { if (!p.properties || typeof p.properties !== "object" || Array.isArray(p.properties))
+    throw new Error("properties object is required."); return p.properties; }
+function list(client, type, p) { return client.request("GET", `/crm/v3/objects/${type}`, { query: { limit: capLimit(p.limit), after: s(p.after), properties: Array.isArray(p.properties) ? p.properties.join(",") : s(p.properties), associations: Array.isArray(p.associations) ? p.associations.join(",") : s(p.associations) } }); }
+function search(client, type, p) { return client.request("POST", `/crm/v3/objects/${type}/search`, { body: compact({ query: s(p.query), filterGroups: p.filterGroups, properties: p.properties, sorts: p.sorts, limit: capLimit(p.limit), after: p.after }) }); }
+async function objectOp(client, type, p) { const action = required(p, "action", "object operation"); switch (action) {
+    case "list": return list(client, type, p);
+    case "search": return search(client, type, p);
+    case "get": {
+        const email = s(p.email);
+        const recordId = email ?? id(p);
+        if (email && /[\\/]/.test(email))
+            throw new Error("Invalid email identifier.");
+        return client.request("GET", `/crm/v3/objects/${type}/${encodeURIComponent(recordId)}`, { query: { idProperty: email ? "email" : s(p.idProperty), properties: Array.isArray(p.properties) ? p.properties.join(",") : s(p.properties), associations: Array.isArray(p.associations) ? p.associations.join(",") : s(p.associations) } });
+    }
+    case "create": return client.request("POST", `/crm/v3/objects/${type}`, { body: compact({ properties: props(p), associations: p.associations }) });
+    case "update": return client.request("PATCH", `/crm/v3/objects/${type}/${id(p)}`, { body: { properties: props(p) } });
+    case "archive": return client.request("DELETE", `/crm/v3/objects/${type}/${id(p)}`);
+    default: throw new Error(`Unsupported action: ${action}.`);
+} }
+export async function status(c, cfg) { const x = await c.request("GET", "/account-info/v3/details"); const d = x; return { connected: true, portalId: d.portalId ?? cfg.portalId ?? null, timeZone: cfg.timezone ?? d.timeZone ?? null, accountName: d.accountName ?? null, companyName: d.companyName ?? null }; }
+export const contacts = (c, _cfg, p) => objectOp(c, "contacts", p);
+export const companies = (c, _cfg, p) => objectOp(c, "companies", p);
+export const deals = (c, _cfg, p) => objectOp(c, "deals", p);
+export const tickets = (c, _cfg, p) => objectOp(c, "tickets", p);
+export const objects = (c, _cfg, p) => objectOp(c, objectType(p), p);
+const ENGAGEMENTS = ["notes", "tasks", "emails", "calls", "meetings"];
+const ENGAGEMENT_ASSOCIATION = {
+    notes: { contacts: 202, companies: 190, deals: 214 },
+    tasks: { contacts: 204, companies: 192, deals: 216 },
+    emails: { contacts: 198, companies: 186, deals: 210 },
+    calls: { contacts: 194, companies: 182, deals: 206 },
+    meetings: { contacts: 200, companies: 188, deals: 212 },
+};
+function mergeCreateAssociations(type, p) {
+    const extras = Array.isArray(p.associations) ? [...p.associations] : [];
+    for (const [param, objectType] of [["contactId", "contacts"], ["companyId", "companies"], ["dealId", "deals"]]) {
+        const value = s(p[param]);
+        if (!value)
+            continue;
+        if (!IDS.test(value))
+            throw new Error(`Invalid ${param}.`);
+        extras.push({ to: { id: value }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: ENGAGEMENT_ASSOCIATION[type]?.[objectType] ?? 1 }] });
+    }
+    if (extras.length)
+        p.associations = extras;
+}
+function engagement(c, type, p) { if (!ENGAGEMENTS.includes(type))
+    throw new Error("Invalid engagement type."); if (p.action === "create") {
+    p.properties = { ...(p.properties ?? {}), hs_timestamp: p.timestamp ?? String(Date.now()) };
+    mergeCreateAssociations(type, p);
+} return objectOp(c, type, p); }
+export const notes = (c, _cfg, p) => { if (p.action === "create") {
+    if (!s(p.body))
+        throw new Error("body is required for create.");
+    p.properties = { ...(p.properties ?? {}), hs_note_body: p.body, hs_timestamp: p.timestamp ?? String(Date.now()) };
+} return engagement(c, "notes", p); };
+export const tasks = (c, _cfg, p) => { if (p.action === "complete") {
+    p.action = "update";
+    p.properties = { ...(p.properties ?? {}), hs_task_status: "COMPLETED" };
+} if (p.action === "create")
+    p.properties = { ...(p.properties ?? {}), hs_timestamp: p.timestamp ?? String(Date.now()), ...(p.subject ? { hs_task_subject: p.subject } : {}), ...(p.body ? { hs_task_body: p.body } : {}) }; return engagement(c, "tasks", p); };
+export const emails = (c, _cfg, p) => engagement(c, "emails", p);
+export const calls = (c, _cfg, p) => engagement(c, "calls", p);
+export const meetings = (c, _cfg, p) => engagement(c, "meetings", p);
+export async function associations(c, _cfg, p) { const action = required(p, "action", "hs_associations"); const from = required(p, "fromType", action), to = required(p, "toType", action), fromId = id(p, "fromId"); if (!OBJECTS.test(from) || !OBJECTS.test(to))
+    throw new Error("Invalid association object type."); const path = `/crm/v4/objects/${from}/${fromId}/associations/${to}`; if (action === "list")
+    return c.request("GET", path); const toId = id(p, "toId"); if (action === "create")
+    return c.request("PUT", `${path}/${toId}`, { body: { types: [{ associationCategory: p.associationCategory ?? "HUBSPOT_DEFINED", associationTypeId: p.associationTypeId ?? defaultAssociation(from, to) }] } }); if (action === "delete")
+    return c.request("DELETE", `${path}/${toId}`); throw new Error(`Unsupported action: ${action}.`); }
+function defaultAssociation(from, to) { const key = `${from}-${to}`; return { "contacts-companies": 1, "deals-contacts": 3, "deals-companies": 5, "tickets-contacts": 16, "notes-contacts": 202, "tasks-contacts": 204, "emails-contacts": 198, "calls-contacts": 194, "meetings-contacts": 200 }[key] ?? 1; }
+export async function pipelines(c, _cfg, p) { const type = required(p, "objectType", "hs_pipelines"); if (type !== "deals" && type !== "tickets")
+    throw new Error("objectType must be deals or tickets."); const action = required(p, "action", "hs_pipelines"); if (action === "list")
+    return c.request("GET", `/crm/v3/pipelines/${type}`); if (action === "get")
+    return c.request("GET", `/crm/v3/pipelines/${type}/${id(p, "pipelineId")}`); if (action === "create")
+    return c.request("POST", `/crm/v3/pipelines/${type}`, { body: p.pipeline ?? p }); throw new Error(`Unsupported action: ${action}.`); }
+export async function properties(c, _cfg, p) { const type = required(p, "objectType", "hs_properties"), action = required(p, "action", "hs_properties"); if (!OBJECTS.test(type))
+    throw new Error("Invalid objectType."); if (action === "list")
+    return c.request("GET", `/crm/v3/properties/${type}`); if (action === "get")
+    return c.request("GET", `/crm/v3/properties/${type}/${required(p, "propertyName", action)}`); if (action === "create")
+    return c.request("POST", `/crm/v3/properties/${type}`, { body: p.property ?? p }); throw new Error(`Unsupported action: ${action}.`); }
+export async function owners(c, _cfg, p) { if (p.action === "get")
+    return c.request("GET", `/crm/v3/owners/${id(p, "ownerId")}`); if (p.action === "list")
+    return c.request("GET", "/crm/v3/owners", { query: { limit: capLimit(p.limit), after: p.after } }); throw new Error("Unsupported action."); }
+export async function lists(c, _cfg, p) { const action = required(p, "action", "hs_lists"); const lid = s(p.listId); if (action === "list")
+    return c.request("GET", "/crm/v3/lists", { query: { limit: capLimit(p.limit), after: p.after } }); if (!lid || !IDS.test(lid))
+    throw new Error("Valid listId is required."); if (action === "get")
+    return c.request("GET", `/crm/v3/lists/${lid}`); const ids = Array.isArray(p.recordIds) ? p.recordIds.map((item) => String(item).trim()).filter(Boolean) : []; if ((action === "add_memberships" || action === "remove_memberships") && (!ids.length || ids.some((item) => !IDS.test(item))))
+    throw new Error("recordIds must be an array of numeric HubSpot record IDs."); if (action === "add_memberships")
+    return c.request("PUT", `/crm/v3/lists/${lid}/memberships/add`, { body: ids }); if (action === "remove_memberships")
+    return c.request("PUT", `/crm/v3/lists/${lid}/memberships/remove`, { body: ids }); throw new Error("Unsupported action."); }
+export async function workflows(c, _cfg, p) { const action = required(p, "action", "hs_workflows"); if (action === "list")
+    return c.request("GET", "/automation/v4/flows", { query: { limit: capLimit(p.limit), after: p.after } }); const wid = id(p, "workflowId"), cid = id(p, "contactId"); const path = `/automation/v4/flows/${wid}/enrollments`; if (action === "enroll")
+    return c.request("POST", path, { body: { inputs: { contactId: cid } } }); if (action === "unenroll")
+    return c.request("DELETE", `${path}/${cid}`); throw new Error("Unsupported action."); }
