@@ -1,6 +1,14 @@
 # Field
 
-Portable Field integration for **Codex, Claude Code and Cursor**. Bundles the Field CLI and operating skill for jobs, quotes, invoices, email templates and catalog workflows.
+## OpenClaw
+
+The OpenClaw product integration is the native plugin at `plugins/field/openclaw` (`@arcforgelabs/openclaw-field`). The operator points it at their Field origin and authenticates with `openclaw mcp login`. Quote and catalog tools come from Field MCP. Do not install a Field CLI or long-lived bearer into an OpenClaw Gateway.
+
+See `plugins/field/openclaw/README.md`.
+
+## Portable (Codex, Claude Code, Cursor)
+
+Portable Field integration for **Codex, Claude Code and Cursor**. Bundles the Field CLI and operating skill for jobs, quotes, invoices, email templates and catalog workflows. This lane is not the OpenClaw product integration.
 
 ## Install
 
