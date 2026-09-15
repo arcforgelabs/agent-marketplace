@@ -25,11 +25,13 @@ host-managed SecretRef for `privateIntegrationToken`. Example source configurati
 ```json
 {
   "locationId": "YOUR_LOCATION_ID",
-  "privateIntegrationToken": {"source":"env","provider":"default","id":"GHL_TOKEN"}
+  "privateIntegrationToken": {"source":"store","provider":"default","id":"GHL_TOKEN"}
 }
 ```
 
-Supply that variable through the Gateway's supported protected setup, not chat,
+`source` must accept `env`, `file`, `exec`, and `store`. One-shot Gateway installs
+use the protected `store` acceptor; omitting `store` is a release blocker.
+Supply that id through the Gateway's supported protected setup, not chat,
 source control, command arguments or a public profile. An unresolved reference
 fails closed. `timezone` is optional with no regional default; use explicit UTC
 offsets in appointment timestamps. Enable the plugin, restart the target Gateway

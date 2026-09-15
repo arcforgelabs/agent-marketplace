@@ -30,6 +30,8 @@ No profile is necessary for generic help. Discover live IDs instead of guessing.
 
 - Sub-account **Private Integration Token** (PIT), stored as a SecretRef on
   `plugins.entries.arcforgelabs-gohighlevel.config.privateIntegrationToken`.
+  One-shot installs use `{"source":"store","provider":"default","id":"GHL_TOKEN"}`.
+  `env`/`file`/`exec` remain valid. Omitting `store` is a release blocker.
 - `locationId` is plugin config, not a secret.
 - Create the PIT **inside the sub-account**, not at agency level. An agency PIT
   cannot access CRM data.
