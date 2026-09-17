@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "provider": "xero",
+  "app_owner": "Arc Forge",
+  "client_id": "replace-with-public-xero-pkce-client-id",
+  "redirect_uris": [
+    "http://localhost:8765/callback"
+  ],
+  "client_secret_required": false
+}

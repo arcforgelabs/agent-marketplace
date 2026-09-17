@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUNDLED_CONNECTOR_ROOT="$PLUGIN_ROOT/connector"
+REPOSITORY_CONNECTOR_ROOT="$(cd "$PLUGIN_ROOT/../../connectors/xero" 2>/dev/null && pwd || true)"
+
+if [[ -n "${ARC_FORGE_XERO_CONNECTOR_ROOT:-}" ]]; then
+  CONNECTOR_ROOT="$ARC_FORGE_XERO_CONNECTOR_ROOT"
+elif [[ -x "$BUNDLED_CONNECTOR_ROOT/mcp/xero-mcp" ]]; then
+  CONNECTOR_ROOT="$BUNDLED_CONNECTOR_ROOT"
+else
+  CONNECTOR_ROOT="$REPOSITORY_CONNECTOR_ROOT"
+fi
+
+if [[ -z "$CONNECTOR_ROOT" || ! -x "$CONNECTOR_ROOT/mcp/xero-mcp" ]]; then
+  printf '%s\n' "Xero connector not found. Install a self-contained plugin package or set ARC_FORGE_XERO_CONNECTOR_ROOT." >&2
+  exit 2
+fi
+
+# OAuth tokens belong only in the connector's encrypted local store. Never pass
+# legacy token/secret environment variables from the Gateway into MCP children.
+unset XERO_ACCESS_TOKEN XERO_REFRESH_TOKEN XERO_ID_TOKEN XERO_CLIENT_SECRET XERO_CLIENT_BEARER_TOKEN
+unset ARC_FORGE_XERO_ACCESS_TOKEN ARC_FORGE_XERO_REFRESH_TOKEN
+
+exec "$CONNECTOR_ROOT/mcp/xero-mcp" run

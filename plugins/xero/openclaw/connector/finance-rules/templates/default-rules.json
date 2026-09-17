@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "name": "local-xero-finance-rules",
+  "description": "Generic starter rules. Add private account, tax, item, and contact mappings in the local copy, not in the committed template.",
+  "parsers": [
+    {
+      "name": "reference-with-number",
+      "pattern": "^(?P<prefix>[A-Za-z]+)[- ]?(?P<number>[0-9]+)(?:[- ](?P<label>.+))?$"
+    }
+  ],
+  "mappings": {
+    "account": [],
+    "tax": [],
+    "item": [],
+    "contact": []
+  },
+  "dedup": {
+    "invoice": {
+      "match_fields": ["reference", "contact", "total"]
+    },
+    "bill": {
+      "match_fields": ["reference", "contact", "total"]
+    },
+    "payment": {
+      "match_fields": ["reference", "amount", "date"]
+    },
+    "bank_transaction": {
+      "match_fields": ["reference", "amount", "date"]
+    }
+  },
+  "conventions": {
+    "document_defaults": {
+      "invoice_status": "DRAFT",
+      "bill_status": "DRAFT",
+      "quote_status": "DRAFT",
+      "credit_note_status": "DRAFT"
+    },
+    "review_required": [
+      "duplicate_candidate",
+      "missing_reference",
+      "negative_total",
+      "non_draft_document_status",
+      "unmapped_account",
+      "unmapped_contact",
+      "unmapped_item",
+      "unmapped_tax"
+    ],
+    "evidence": {
+      "attach_before_authorise": true,
+      "history_note_on_apply": true
+    },
+    "reconciliation": {
+      "api_prework_first": true,
+      "cdp_apply_requires_explicit_plan": true
+    }
+  }
+}
