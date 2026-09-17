@@ -1,0 +1,51 @@
+{
+  "name": "@arcforgelabs/openclaw-xero",
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/native-plugin.test.js",
+    "plugin:validate": "openclaw plugins validate --root . --entry ./index.js"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.9.3"
+  },
+  "dependencies": {
+    "typebox": "^1.3.17"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.js"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.9.3",
+      "minGatewayVersion": "2026.9.3"
+    },
+    "build": {
+      "openclawVersion": "2026.9.3",
+      "pluginSdkVersion": "2026.9.3"
+    }
+  },
+  "description": "Unofficial Xero integration for OpenClaw, with bundled read-oriented finance workflows.",
+  "license": "MIT",
+  "author": {
+    "name": "Arc Forge Labs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arcforgelabs/agent-marketplace.git",
+    "directory": "plugins/xero/openclaw"
+  },
+  "bin": {
+    "xero": "./connector/cli/xero"
+  },
+  "files": [
+    "connector",
+    "lib",
+    "skills",
+    "scripts",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE",
+    "PROVENANCE.json"
+  ]
+}

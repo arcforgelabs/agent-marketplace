@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "name": "xero",
+  "path": "connectors/xero",
+  "category": "connector",
+  "status": "prototype-core",
+  "summary": "Official-first Xero MCP/CLI plugin with local user OAuth, rate governance, finance-rule helpers, and optional CDP reconciliation finalization.",
+  "architecture_level": "connector",
+  "state_owner": "Xero plugin assembly and local credential/runtime environment; committed repo state is docs, manifests, generic MCP/tool code, and reusable rule schemas only.",
+  "judgement_owner": "Human finance operator owns accounting judgement; deterministic connector code owns API surface, OAuth boundaries, rate governance, dedup checks, and output shape.",
+  "deterministic_validators": [
+    "connectors/xero/scripts/validate-xero",
+    "python3 connectors/xero/tests/test_xero_core.py",
+    "scripts/forge-tools module validate connectors/xero",
+    "connectors/xero/cli/xero doctor",
+    "connectors/xero/cli/xero auth app-config",
+    "connectors/xero/cli/xero rate unblock-day-limit --holder validator --reason local-validator --day-key 2026-06-06 --unblock-store /tmp/xero-rate-unblock-validator.json",
+    "connectors/xero/cli/xero-smoke",
+    "connectors/xero/cli/xero rate status --include-cli",
+    "connectors/xero/mcp/xero-mcp-local self-test",
+    "connectors/xero/mcp/xero-workflows-mcp self-test",
+    "connectors/xero/mcp/xero-mcp-local status",
+    "connectors/xero/mcp/xero-mcp-local surface --strict",
+    "connectors/xero/mcp/xero-mcp-local protocol-smoke --strict",
+    "connectors/xero/mcp/xero-mcp-local print-config --harness claude-desktop",
+    "plugins/xero/scripts/install-xero-plugin --target generic --dry-run",
+    "connectors/xero/reconciliation/xero-reconcile apply --help",
+    "python3 /home/samuel/.codex-accounts/shared/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/xero",
+    "scripts/forge-tools run xero rules validate --rules connectors/xero/finance-rules/templates/default-rules.json",
+    "future live Xero auth smoke validation",
+    "future live Xero MCP read-only smoke validation",
+    "future live Xero governor header smoke validation"
+  ],
+  "provider_boundary": "Providers may summarize retrieved accounting data but must not receive secrets, MFA material, cookies, or organization-specific credential names.",
+  "domain_boundary": "Xero Accounting API, local OAuth, accounting objects, reports, reusable finance-rule helpers, and optional already-authenticated CDP workflow guidance.",
+  "artifacts": [
+    "Xero API responses",
+    "MCP tool surface",
+    "CLI auth and diagnostic output",
+    "finance-rule dry-run and apply reports",
+    "optional CDP reconciliation audit output"
+  ],
+  "stop_conditions": [
+    "credentials and tenant-private exports stay out of commits",
+    "generic code remains separated from private organization-specific configuration",
+    "read/write capability boundaries are documented before use",
+    "browser automation does not package login, MFA retrieval, credential entry, or security-control bypass behavior"
+  ],
+  "entrypoints": {
+    "cli": "connectors/xero/cli/xero",
+    "mcp": "connectors/xero/mcp/xero-mcp-local run",
+    "validate": "connectors/xero/scripts/validate-xero"
+  },
+  "dependencies": ["node", "npm", "python3", "cryptography"],
+  "components": ["plugins/xero", "components/skills/xero", "components/mcp/xero", "connectors/xero/finance-rules", "connectors/xero/reconciliation", "connectors/xero/docs"],
+  "inputs": ["Xero OAuth authorization", "local token state", "tenant id", "accounting object requests", "finance-rule files", "optional user-provided CDP endpoint"],
+  "outputs": ["Xero API responses", "MCP tool surface", "CLI diagnostics", "finance-rule dry-run and apply reports", "optional reconciliation audit output"],
+  "harness_targets": ["Codex", "Claude Desktop", "Cursor", "OpenClaw", "Claude Code"],
+  "data_boundary": "Do not commit tokens, client secrets, MFA codes, cookies, browser profiles, tenant-private exports, private organization-specific account mappings, or local credential item names as defaults."
+}

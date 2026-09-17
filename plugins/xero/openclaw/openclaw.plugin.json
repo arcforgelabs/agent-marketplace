@@ -1,0 +1,70 @@
+{
+  "id": "arcforgelabs-xero",
+  "name": "Xero",
+  "description": "Native OpenClaw Gateway bridge for the Arc Forge Xero connector.",
+  "version": "0.2.0",
+  "skills": [
+    "./skills"
+  ],
+  "activation": {
+    "onStartup": true,
+    "onCommands": [
+      "xero"
+    ]
+  },
+  "cliCommands": [
+    {
+      "name": "xero",
+      "description": "Run the Xero connector CLI",
+      "hasSubcommands": true
+    }
+  ],
+  "mcpServers": {
+    "xero": {
+      "transport": "stdio",
+      "command": "./scripts/run-xero-mcp",
+      "args": []
+    }
+  },
+  "dashboard": {
+    "dataBindings": [
+      {
+        "id": "status",
+        "method": "xero.status",
+        "description": "Read local Xero connector readiness without network access."
+      },
+      {
+        "id": "oauth.contract",
+        "method": "xero.oauth.contract",
+        "description": "Read the redacted OAuth PKCE contract."
+      },
+      {
+        "id": "tenants.local",
+        "method": "xero.tenants.local",
+        "description": "List locally recorded Xero tenants without refreshing."
+      }
+    ],
+    "actionVerbs": []
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "connectorRoot": {
+        "type": "string",
+        "description": "Absolute path to connectors/xero when outside the repository layout."
+      },
+      "commandTimeoutMs": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 120000,
+        "default": 30000
+      }
+    },
+    "additionalProperties": false
+  },
+  "contracts": {
+    "tools": [
+      "xero_status"
+    ]
+  }
+}

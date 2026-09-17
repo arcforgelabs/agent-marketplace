@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-06-07",
+  "stale_after_days": 90,
+  "sources": [
+    {
+      "id": "xero-oauth-overview",
+      "title": "Xero OAuth 2.0 overview",
+      "url": "https://developer.xero.com/documentation/guides/oauth2/overview",
+      "notes": [
+        "Xero supports authorization code and PKCE flows.",
+        "PKCE is the right installed-app path when a client secret cannot be safely stored.",
+        "Code and PKCE apps connect to up to 25 tenants before certification."
+      ]
+    },
+    {
+      "id": "xero-token-types",
+      "title": "Xero OAuth token types",
+      "url": "https://developer.xero.com/documentation/guides/oauth2/token-types",
+      "notes": [
+        "Access tokens are valid for up to 30 minutes.",
+        "Refresh tokens require offline_access, are valid for up to 60 days, and rotate on refresh.",
+        "PKCE token refresh does not require a client secret.",
+        "A lost refresh response leaves a previous refresh token grace period of up to 30 minutes."
+      ]
+    },
+    {
+      "id": "xero-oauth-faq",
+      "title": "Xero OAuth 2.0 FAQ",
+      "url": "https://developer.xero.com/faq/oauth2",
+      "notes": [
+        "Unused refresh tokens expire after 60 days.",
+        "Access tokens expire after 30 minutes.",
+        "Wildcard redirect URIs are not supported."
+      ]
+    },
+    {
+      "id": "xero-limits-faq",
+      "title": "Xero limits FAQ",
+      "url": "https://developer.xero.com/faq/limits",
+      "notes": [
+        "Concurrent tenant limit is 5 calls in progress.",
+        "Tenant minute limit is 60 calls per minute.",
+        "Tenant daily limit is 5000 calls per day.",
+        "App minute limit is 10000 calls per minute across tenants.",
+        "Rate-limit responses include remaining-limit headers and 429 responses include Retry-After."
+      ]
+    },
+    {
+      "id": "xero-pricing",
+      "title": "Xero developer pricing and tiers",
+      "url": "https://developer.xero.com/pricing",
+      "notes": [
+        "Starter tier currently shows 1000 API calls per day per organisation.",
+        "Core and higher tiers currently show 5000 API calls per day per organisation.",
+        "Developer dashboard usage and connection metering is app-level."
+      ]
+    },
+    {
+      "id": "xero-official-mcp",
+      "title": "Xero official MCP server",
+      "url": "https://github.com/XeroAPI/xero-mcp-server",
+      "notes": [
+        "Official MCP supports Custom Connections using client ID and client secret.",
+        "Official MCP supports pre-supplied bearer tokens.",
+        "The local plugin wraps the official MCP client so installed users do not need developer credentials or a manually supplied short-lived bearer token."
+      ]
+    }
+  ]
+}

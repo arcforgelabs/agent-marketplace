@@ -1,0 +1,787 @@
+#!/usr/bin/env python3
+"""Validate the repo-local Xero connector without live Xero credentials.
+
+The default path avoids OAuth, browser login, and live Xero API calls. Use
+--prepare when the official MCP package cache should be installed/refreshed
+before protocol smoke validation.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+from typing import Any
+
+
+MODULE_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = MODULE_ROOT.parents[1]
+XERO_CLI = MODULE_ROOT / "cli" / "xero"
+XERO_SMOKE = MODULE_ROOT / "cli" / "xero-smoke"
+XERO_MCP = MODULE_ROOT / "mcp" / "xero-mcp-local"
+XERO_PLUGIN_MCP = MODULE_ROOT / "mcp" / "xero-workflows-mcp"
+XERO_RECONCILE = MODULE_ROOT / "reconciliation" / "xero-reconcile"
+TESTS = MODULE_ROOT / "tests" / "test_xero_core.py"
+TESTS_PROFILES = MODULE_ROOT / "tests" / "test_xero_profiles.py"
+RULES = MODULE_ROOT / "finance-rules" / "templates" / "default-rules.json"
+OFFICIAL_DOCS = MODULE_ROOT / "docs" / "official-docs.json"
+INSTALLER = REPO_ROOT / "plugins" / "xero" / "scripts" / "install-xero-plugin"
+PLUGIN = REPO_ROOT / "plugins" / "xero"
+PLUGIN_OAUTH_APP = PLUGIN / "oauth-app.json"
+PLUGIN_VALIDATOR = Path("/home/samuel/.codex-accounts/shared/skills/.system/plugin-creator/scripts/validate_plugin.py")
+
+ARCHITECTURE_REQUIREMENTS: list[dict[str, Any]] = [
+    {
+        "id": "core_oauth_pkce_local_tokens",
+        "area": "core",
+        "description": "PKCE OAuth CLI, encrypted local token store, tenant selection, and local smoke helpers exist.",
+        "paths": [
+            "connectors/xero/cli/xero",
+            "connectors/xero/scripts/xero_core.py",
+            "connectors/xero/cli/xero-smoke",
+            "connectors/xero/config/oauth-app.example.json",
+            "connectors/xero/docs/oauth-mfa.md",
+        ],
+    },
+    {
+        "id": "official_mcp_local_auth_wrapper",
+        "area": "mcp",
+        "description": "Official Xero MCP server is wrapped so it uses the local token provider without user developer credentials.",
+        "paths": [
+            "connectors/xero/mcp/xero-mcp-local",
+            "connectors/xero/scripts/xero_mcp_local.py",
+            "connectors/xero/mcp/xero-workflows-mcp",
+            "connectors/xero/scripts/xero_workflows_mcp.py",
+        ],
+    },
+    {
+        "id": "rate_governor_and_operation_lock",
+        "area": "governor",
+        "description": "Pre-dispatch rate governor, observed rate status, day-limit circuit, and heavy-operation FIFO lock are present.",
+        "paths": [
+            "connectors/xero/scripts/xero_operation_lock.py",
+            "connectors/xero/docs/limits.md",
+        ],
+    },
+    {
+        "id": "finance_rules_audit_layer",
+        "area": "finance-rules",
+        "description": "Naming/mapping rules, dedup checks, snapshots, dry-runs, apply ledger, and workflow docs are present.",
+        "paths": [
+            "connectors/xero/scripts/xero_finance_rules.py",
+            "connectors/xero/finance-rules/templates/default-rules.json",
+            "connectors/xero/finance-rules/README.md",
+            "connectors/xero/docs/workflow-playbooks.md",
+        ],
+    },
+    {
+        "id": "write_preflight_enforcement",
+        "area": "write-safety",
+        "description": "Apply-capable local write helpers require a dry-run/audit preflight report or explicit operator override.",
+        "paths": [
+            "connectors/xero/scripts/xero_core.py",
+            "connectors/xero/scripts/xero_workflows_mcp.py",
+            "connectors/xero/tests/test_xero_core.py",
+            "connectors/xero/docs/workflow-playbooks.md",
+        ],
+    },
+    {
+        "id": "batch_dry_run_proof_reports",
+        "area": "batch-safety",
+        "description": "Large audit dry-runs produce bounded batch plans and estimated apply API calls before mutation.",
+        "paths": [
+            "connectors/xero/scripts/xero_finance_rules.py",
+            "connectors/xero/tests/test_xero_core.py",
+            "connectors/xero/finance-rules/README.md",
+            "connectors/xero/docs/workflow-playbooks.md",
+        ],
+    },
+    {
+        "id": "official_mutation_safety_inventory",
+        "area": "mcp-write-safety",
+        "description": "Official MCP mutating tools are inventoried with local preflight-enforced alternatives where available.",
+        "paths": [
+            "connectors/xero/scripts/xero_mcp_local.py",
+            "connectors/xero/tests/test_xero_core.py",
+            "connectors/xero/docs/plugin-architecture.md",
+        ],
+    },
+    {
+        "id": "api_layer_category_map",
+        "area": "api-layer",
+        "description": "API/MCP coverage is mapped for reference data, documents, payments, bank objects, journals, reports, evidence, and audit checks.",
+        "paths": [
+            "connectors/xero/docs/api-vs-cdp-map.md",
+            "connectors/xero/docs/plugin-architecture.md",
+            "connectors/xero/docs/official-docs.json",
+        ],
+    },
+    {
+        "id": "cdp_reconciliation_boundary",
+        "area": "reconciliation",
+        "description": "Reconciliation extension is CDP-gated, uses only explicit user-provided logged-in browser sessions, and has no login automation.",
+        "paths": [
+            "connectors/xero/reconciliation/xero-reconcile",
+            "connectors/xero/scripts/xero_reconciliation.py",
+            "connectors/xero/reconciliation/README.md",
+        ],
+    },
+    {
+        "id": "multi_business_profile_isolation",
+        "area": "multi-business",
+        "description": "Per-business profile registry isolates token stores and namespaces aggregator tools so writes cannot cross legal entities.",
+        "paths": [
+            "connectors/xero/scripts/xero_profiles.py",
+            "connectors/xero/scripts/xero_mcp.py",
+            "connectors/xero/tests/test_xero_profiles.py",
+            "connectors/xero/docs/multi-business.md",
+        ],
+    },
+    {
+        "id": "plugin_install_docs_and_skill",
+        "area": "plugin",
+        "description": "Repo-local Xero plugin, install flow, MCP config, docs, and renamed xero skill are present.",
+        "paths": [
+            "plugins/xero/.codex-plugin/plugin.json",
+            "plugins/xero/.mcp.json",
+            "plugins/xero/scripts/install-xero-plugin",
+            "plugins/xero/skills/xero-plugin/SKILL.md",
+            "components/skills/xero/SKILL.md",
+            "connectors/xero/docs/install.md",
+        ],
+    },
+]
+
+REQUIRED_API_CATEGORIES = [
+    "contacts",
+    "items",
+    "tax_rates",
+    "accounts",
+    "tracking_categories",
+    "invoices_bills",
+    "quotes",
+    "credit_notes",
+    "payments",
+    "batch_payments",
+    "bank_transactions",
+    "bank_transfers",
+    "manual_journals",
+    "reports",
+    "attachments_history",
+    "dedup_audit",
+    "reference_snapshots",
+    "targeted_live_checks",
+]
+
+REQUIRED_OFFICIAL_DOC_IDS = [
+    "xero-oauth-overview",
+    "xero-token-types",
+    "xero-oauth-faq",
+    "xero-limits-faq",
+    "xero-pricing",
+    "xero-official-mcp",
+]
+
+
+def utc_seconds() -> int:
+    return int(time.time())
+
+
+def parse_json(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return None
+
+
+def run_step(name: str, command: list[str], *, required: bool = True) -> dict[str, Any]:
+    started = utc_seconds()
+    result = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    stdout = result.stdout.strip()
+    stderr = result.stderr.strip()
+    parsed_stdout = parse_json(stdout) if stdout else None
+    return {
+        "name": name,
+        "command": command,
+        "required": required,
+        "ok": result.returncode == 0,
+        "returncode": result.returncode,
+        "started_at": started,
+        "finished_at": utc_seconds(),
+        "stdout_json": parsed_stdout,
+        "stdout": None if parsed_stdout is not None else stdout,
+        "stderr": stderr,
+    }
+
+
+def add_step(report: dict[str, Any], name: str, command: list[str], *, required: bool = True) -> None:
+    report["steps"].append(run_step(name, command, required=required))
+
+
+def mcp_package_present(status_step: dict[str, Any]) -> bool:
+    payload = status_step.get("stdout_json")
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("package_present") is True:
+        return True
+    checks = payload.get("checks")
+    return isinstance(checks, dict) and checks.get("package_present") is True
+
+
+def step_payload(report: dict[str, Any], name: str) -> dict[str, Any]:
+    for step in report.get("steps", []):
+        if isinstance(step, dict) and step.get("name") == name and isinstance(step.get("stdout_json"), dict):
+            return step["stdout_json"]
+    return {}
+
+
+def doctor_check(payload: dict[str, Any], name: str) -> dict[str, Any]:
+    checks = payload.get("checks")
+    if not isinstance(checks, list):
+        return {}
+    for item in checks:
+        if isinstance(item, dict) and item.get("name") == name:
+            return item
+    return {}
+
+
+def unique_strings(values: list[Any]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value or "").strip()
+        if text and text not in seen:
+            seen.add(text)
+            result.append(text)
+    return result
+
+
+def canonical_next_step(value: Any) -> str:
+    text = str(value or "").strip()
+    lowered = text.lower()
+    if "oauth app" in lowered and "redirect uri" in lowered:
+        return "Create or update the Arc Forge-owned Xero OAuth app with the printed localhost redirect URI and scopes."
+    if "public" in lowered and "client id" in lowered:
+        return "Package the public Xero OAuth client ID in `plugins/xero/oauth-app.json`, run `xero auth configure-app --client-id <id>`, or set `ARC_FORGE_XERO_CLIENT_ID`."
+    if "xero auth login" in lowered:
+        return "Run `xero auth login`, complete Xero login/MFA/consent in the browser, then select a tenant."
+    if "xero rules init" in lowered:
+        return "Run `xero rules init` and fill in private account/contact/tax mappings for your organisation."
+    return text
+
+
+def canonical_next_steps(values: list[Any]) -> list[str]:
+    return unique_strings([canonical_next_step(value) for value in values])
+
+
+def build_readiness(report: dict[str, Any]) -> dict[str, Any]:
+    doctor = step_payload(report, "doctor_local")
+    app_config = step_payload(report, "auth_app_config")
+    rate = step_payload(report, "rate_status")
+    lock = step_payload(report, "lock_status")
+    mcp = step_payload(report, "mcp_status")
+    protocol = step_payload(report, "mcp_protocol_smoke")
+    reconcile = step_payload(report, "reconciliation_status")
+    live_smoke = step_payload(report, "xero_smoke_live")
+
+    mcp_checks = mcp.get("checks") if isinstance(mcp.get("checks"), dict) else {}
+    mcp_patch = mcp.get("patch") if isinstance(mcp.get("patch"), dict) else {}
+    xero_app = app_config.get("xero_app") if isinstance(app_config.get("xero_app"), dict) else {}
+
+    next_steps = []
+    if isinstance(doctor.get("next_steps"), list):
+        next_steps.extend(doctor["next_steps"])
+    if isinstance(app_config.get("next_steps"), list):
+        next_steps.extend(app_config["next_steps"])
+
+    auth_ready = bool(doctor.get("auth_ok"))
+    oauth_client_id_configured = bool(xero_app.get("client_id_configured"))
+    token_store_ready = bool(doctor_check(doctor, "token_store").get("ok"))
+    token_store_encrypted = bool(doctor_check(doctor, "token_store_encrypted").get("ok"))
+    active_tenant_selected = bool(doctor_check(doctor, "active_tenant").get("ok"))
+
+    live_smoke_ready = bool(live_smoke.get("ok") or live_smoke.get("summary", {}).get("failed_required") == 0) if live_smoke else False
+
+    return {
+        "local_gate_ok": bool(report.get("ok")),
+        "local_base_ready": bool(doctor.get("base_ok")),
+        "auth_ready": auth_ready,
+        "oauth_client_id_configured": oauth_client_id_configured,
+        "token_store_ready": token_store_ready,
+        "token_store_encrypted": token_store_encrypted,
+        "active_tenant_selected": active_tenant_selected,
+        "mcp_ready": bool(
+            mcp.get("ok")
+            and mcp_checks.get("package_present")
+            and mcp_checks.get("patch_complete")
+            and mcp_patch.get("local_token_provider")
+            and mcp_patch.get("rate_governor")
+            and mcp_patch.get("shared_rate_budget")
+        ),
+        "mcp_protocol_ready": bool(protocol.get("ok")),
+        "rate_governor_status_ready": bool(rate.get("ok")),
+        "operation_lock_ready": bool(lock.get("ok")),
+        "reconciliation_extension_ready": bool(reconcile.get("ok")),
+        "live_cdp_ready": bool(reconcile.get("live_cdp_ready")),
+        "live_smoke_ready": live_smoke_ready,
+        "live_validation_pending": not live_smoke_ready,
+        "next_steps": canonical_next_steps(next_steps),
+    }
+
+
+def relative_path_exists(path: str) -> bool:
+    return (REPO_ROOT / path).exists()
+
+
+def file_contains(path: str, markers: list[str]) -> bool:
+    target = REPO_ROOT / path
+    if not target.exists():
+        return False
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return all(marker in text for marker in markers)
+
+
+def mcp_surface_categories_ok(surface: dict[str, Any]) -> tuple[bool, list[str]]:
+    categories = surface.get("categories")
+    if not isinstance(categories, dict):
+        return False, REQUIRED_API_CATEGORIES[:]
+    missing: list[str] = []
+    for category in REQUIRED_API_CATEGORIES:
+        payload = categories.get(category)
+        if not isinstance(payload, dict) or payload.get("ok") is not True:
+            missing.append(category)
+    return not missing, missing
+
+
+def load_official_docs_manifest() -> dict[str, Any]:
+    if not OFFICIAL_DOCS.exists():
+        return {"ok": False, "missing": True, "reason": "missing official docs manifest"}
+    try:
+        payload = json.loads(OFFICIAL_DOCS.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"ok": False, "missing": False, "reason": f"invalid official docs manifest: {exc}"}
+
+    sources = payload.get("sources") if isinstance(payload.get("sources"), list) else []
+    source_ids = [item.get("id") for item in sources if isinstance(item, dict)]
+    missing_ids = [item for item in REQUIRED_OFFICIAL_DOC_IDS if item not in source_ids]
+
+    verified_on_raw = str(payload.get("verified_on") or "")
+    stale_after_days = int(payload.get("stale_after_days") or 90)
+    today = dt.date.today()
+    try:
+        verified_on = dt.date.fromisoformat(verified_on_raw)
+        age_days = (today - verified_on).days
+        stale = age_days > stale_after_days
+    except ValueError:
+        verified_on = None
+        age_days = None
+        stale = True
+
+    bad_sources = []
+    for source in sources:
+        if not isinstance(source, dict):
+            bad_sources.append({"id": None, "reason": "source entry is not an object"})
+            continue
+        if not source.get("id") or not source.get("title") or not source.get("url"):
+            bad_sources.append({"id": source.get("id"), "reason": "source must include id, title, and url"})
+
+    ok = not missing_ids and not bad_sources and verified_on is not None and not stale
+    return {
+        "ok": ok,
+        "path": str(OFFICIAL_DOCS),
+        "verified_on": verified_on_raw,
+        "age_days": age_days,
+        "stale_after_days": stale_after_days,
+        "stale": stale,
+        "required_source_ids": REQUIRED_OFFICIAL_DOC_IDS,
+        "missing_source_ids": missing_ids,
+        "source_count": len(sources),
+        "bad_sources": bad_sources,
+    }
+
+
+def redact_value(value: Any) -> Any:
+    text = str(value or "")
+    if not text:
+        return None
+    if len(text) <= 8:
+        return "***"
+    return f"{text[:4]}...{text[-4:]}"
+
+
+def packaged_oauth_app_status() -> dict[str, Any]:
+    if not PLUGIN_OAUTH_APP.exists():
+        return {
+            "ok": False,
+            "path": str(PLUGIN_OAUTH_APP),
+            "exists": False,
+            "client_id_configured": False,
+            "client_secret_present": False,
+            "client_secret_required": False,
+            "message": "Package the public Arc Forge Xero OAuth client ID in plugins/xero/oauth-app.json before release.",
+        }
+    try:
+        payload = json.loads(PLUGIN_OAUTH_APP.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {
+            "ok": False,
+            "path": str(PLUGIN_OAUTH_APP),
+            "exists": True,
+            "client_id_configured": False,
+            "client_secret_present": False,
+            "client_secret_required": False,
+            "message": f"Packaged OAuth app config is invalid: {exc}",
+        }
+    if not isinstance(payload, dict):
+        return {
+            "ok": False,
+            "path": str(PLUGIN_OAUTH_APP),
+            "exists": True,
+            "client_id_configured": False,
+            "client_secret_present": False,
+            "client_secret_required": False,
+            "message": "Packaged OAuth app config root must be an object.",
+        }
+    client_id = str(payload.get("client_id") or payload.get("public_client_id") or "").strip()
+    client_secret_present = bool(str(payload.get("client_secret") or "").strip())
+    client_secret_required = bool(payload.get("client_secret_required"))
+    ok = bool(client_id) and not client_secret_present and not client_secret_required
+    return {
+        "ok": ok,
+        "path": str(PLUGIN_OAUTH_APP),
+        "exists": True,
+        "client_id_configured": bool(client_id),
+        "client_id": redact_value(client_id),
+        "client_secret_present": client_secret_present,
+        "client_secret_required": client_secret_required,
+        "app_owner": payload.get("app_owner"),
+        "redirect_uris": payload.get("redirect_uris") if isinstance(payload.get("redirect_uris"), list) else [],
+        "message": "Packaged public OAuth app config is ready." if ok else "Packaged OAuth app config must include a public client ID and no client secret.",
+    }
+
+
+def build_release_readiness(*, release: bool) -> dict[str, Any]:
+    packaged = packaged_oauth_app_status()
+    return {
+        "release": release,
+        "ok": bool(packaged.get("ok")),
+        "user_developer_credentials_required": False,
+        "packaged_oauth_app": packaged,
+        "required_for_release": [
+            "plugins/xero/oauth-app.json contains the Arc Forge public Xero OAuth client ID.",
+            "plugins/xero/oauth-app.json does not contain a client secret.",
+        ],
+        "next_steps": [] if packaged.get("ok") else ["Run `plugins/xero/scripts/install-xero-plugin --target codex --client-id <public-client-id> --package-client-id` after creating the Arc Forge Xero public OAuth app."],
+    }
+
+
+def build_architecture_coverage(report: dict[str, Any]) -> dict[str, Any]:
+    mcp_status = step_payload(report, "mcp_status")
+    mcp_surface = step_payload(report, "mcp_surface")
+    reconcile = step_payload(report, "reconciliation_status")
+    plugin_mcp = step_payload(report, "plugin_mcp_self_test")
+    app_config = step_payload(report, "auth_app_config")
+    rate = step_payload(report, "rate_status")
+    lock = step_payload(report, "lock_status")
+    official_docs = load_official_docs_manifest()
+
+    category_ok, missing_categories = mcp_surface_categories_ok(mcp_surface)
+    xero_app = app_config.get("xero_app") if isinstance(app_config.get("xero_app"), dict) else {}
+    mcp_patch = mcp_status.get("patch") if isinstance(mcp_status.get("patch"), dict) else {}
+    plugin_tools = plugin_mcp.get("required_present") if isinstance(plugin_mcp.get("required_present"), list) else []
+    reconcile_actions = reconcile.get("apply_actions") if isinstance(reconcile.get("apply_actions"), list) else []
+    reconcile_implemented = reconcile.get("implemented") if isinstance(reconcile.get("implemented"), list) else []
+    mutation_safety = mcp_surface.get("mutation_safety") if isinstance(mcp_surface.get("mutation_safety"), dict) else {}
+
+    derived_evidence: dict[str, bool] = {
+        "core_oauth_pkce_local_tokens": bool(
+            xero_app.get("client_secret_required") is False
+            and app_config.get("user_developer_credentials_required") is False
+            and app_config.get("oauth_flow", {}).get("pkce") is True
+            and app_config.get("oauth_flow", {}).get("local_cli_captures_callback_only") is True
+        ),
+        "official_mcp_local_auth_wrapper": bool(
+            mcp_status.get("wrapper_sets_local_auth") is True
+            and mcp_patch.get("local_token_provider") is True
+            and mcp_patch.get("rate_governor") is True
+            and mcp_patch.get("shared_rate_budget") is True
+            and plugin_mcp.get("ok") is True
+        ),
+        "rate_governor_and_operation_lock": bool(
+            rate.get("ok") is True
+            and lock.get("ok") is True
+            and isinstance(rate.get("limits"), dict)
+            and "day_limit" in rate.get("limits", {})
+            and (rate.get("shared_budget_store") or mcp_patch.get("shared_rate_budget") is True)
+        ),
+        "finance_rules_audit_layer": bool(
+            "xero_audit_dry_run" in plugin_tools
+            and "xero_prework_create" in plugin_tools
+            and "xero_reference_upsert" in plugin_tools
+        ),
+        "write_preflight_enforcement": bool(
+            file_contains(
+                "connectors/xero/scripts/xero_core.py",
+                [
+                    "def validate_mutation_preflight",
+                    "--preflight-report",
+                    "--confirm-apply-without-preflight",
+                    "Apply requires --preflight-report",
+                ],
+            )
+            and file_contains(
+                "connectors/xero/scripts/xero_workflows_mcp.py",
+                [
+                    '"preflight_report": {"type": "string"}',
+                    "--preflight-report",
+                    "--confirm-apply-without-preflight",
+                ],
+            )
+            and file_contains(
+                "connectors/xero/tests/test_xero_core.py",
+                [
+                    "test_documents_create_apply_requires_preflight_or_explicit_override",
+                    "test_documents_create_apply_accepts_matching_dry_run_preflight_report",
+                ],
+            )
+        ),
+        "batch_dry_run_proof_reports": bool(
+            file_contains(
+                "connectors/xero/scripts/xero_finance_rules.py",
+                [
+                    "def build_batch_plan",
+                    "estimated_apply_api_calls",
+                    "do not dispatch unbounded candidate lists",
+                ],
+            )
+            and file_contains(
+                "connectors/xero/tests/test_xero_core.py",
+                ["test_audit_dry_run_builds_bounded_batch_plan_for_ready_candidates"],
+            )
+            and file_contains(
+                "connectors/xero/finance-rules/README.md",
+                ["`batch_plan`", "--max-batch-size"],
+            )
+        ),
+        "official_mutation_safety_inventory": bool(
+            mutation_safety.get("mutating_tool_count", 0) >= mutation_safety.get("covered_by_local_preflight_count", 0)
+            and isinstance(mutation_safety.get("items"), list)
+            and any(
+                item.get("tool") == "create-tracking-options"
+                and "xero reference upsert tracking-option --preflight-report <report>" in item.get("local_preflight_alternatives", [])
+                for item in mutation_safety.get("items", [])
+                if isinstance(item, dict)
+            )
+            and mutation_safety.get("policy", {}).get("official_mcp_full_power") is True
+            and file_contains(
+                "connectors/xero/scripts/xero_mcp_local.py",
+                ["def classify_mutation_safety", "LOCAL_PREFLIGHT_ALTERNATIVES"],
+            )
+            and file_contains(
+                "connectors/xero/tests/test_xero_core.py",
+                ["mutation_safety", "local_preflight_alternatives", "tracking-option"],
+            )
+        ),
+        "api_layer_category_map": category_ok and bool(official_docs.get("ok")),
+        "cdp_reconciliation_boundary": bool(
+            reconcile.get("ok") is True
+            and reconcile.get("requires_cdp_endpoint") is True
+            and reconcile.get("login_automation") is False
+            and reconcile.get("credential_collection") is False
+            and "dry-run-suggested-apply-plan" in reconcile_implemented
+            and {"accept-suggestion", "create", "match", "transfer"}.issubset(set(reconcile_actions))
+        ),
+        "plugin_install_docs_and_skill": bool(step_payload(report, "plugin_validate") or (PLUGIN / ".codex-plugin" / "plugin.json").exists()),
+        "multi_business_profile_isolation": bool(
+            file_contains(
+                "connectors/xero/scripts/xero_profiles.py",
+                ["BUSINESS_FIELDS", "SHARED_FIELDS", "def resolve_active_profile", "def assign_prefixes"],
+            )
+            and file_contains(
+                "connectors/xero/scripts/xero_mcp.py",
+                ["def _plan_businesses", "def _public_name", "env_overlay"],
+            )
+            and file_contains(
+                "connectors/xero/tests/test_xero_profiles.py",
+                ["test_aggregator_multi_business_prefixes_and_routes", "test_resolve_paths_isolation_and_sharing"],
+            )
+            and file_contains(
+                "connectors/xero/docs/multi-business.md",
+                ["per business", "token store", "namespaces"],
+            )
+        ),
+    }
+
+    requirements: list[dict[str, Any]] = []
+    for requirement in ARCHITECTURE_REQUIREMENTS:
+        paths = requirement["paths"]
+        missing_paths = [path for path in paths if not relative_path_exists(path)]
+        evidence_ok = bool(derived_evidence.get(requirement["id"]))
+        requirements.append(
+            {
+                **requirement,
+                "ok": not missing_paths and evidence_ok,
+                "missing_paths": missing_paths,
+                "evidence_ok": evidence_ok,
+            }
+        )
+
+    failed = [item["id"] for item in requirements if not item["ok"]]
+    return {
+        "ok": not failed,
+        "requirements": requirements,
+        "failed": failed,
+        "api_categories": {
+            "ok": category_ok,
+            "required": REQUIRED_API_CATEGORIES,
+            "missing": missing_categories,
+        },
+        "official_docs": official_docs,
+    }
+
+
+def build_report(args: argparse.Namespace) -> dict[str, Any]:
+    report: dict[str, Any] = {
+        "ok": True,
+        "mode": "xero-connector-validate",
+        "generated_at": utc_seconds(),
+        "live_api": bool(args.live_api),
+        "cdp": bool(args.cdp_endpoint),
+        "login_automation": False,
+        "credential_collection": False,
+        "steps": [],
+    }
+
+    add_step(report, "python_tests", ["python3", str(TESTS)])
+    add_step(report, "python_tests_profiles", ["python3", str(TESTS_PROFILES)])
+    add_step(report, "installer_syntax", ["bash", "-n", str(INSTALLER)])
+    add_step(report, "doctor_local", [str(XERO_CLI), "doctor"])
+    add_step(report, "auth_app_config", [str(XERO_CLI), "auth", "app-config"])
+    add_step(report, "rate_status", [str(XERO_CLI), "rate", "status", "--include-cli"])
+    add_step(report, "lock_status", [str(XERO_CLI), "lock", "status"])
+    add_step(report, "finance_rules_validate", [str(XERO_CLI), "rules", "validate", "--rules", str(RULES)])
+    add_step(report, "xero_smoke_local", [str(XERO_SMOKE)])
+    add_step(report, "mcp_self_test", [str(XERO_MCP), "self-test"])
+    add_step(report, "plugin_mcp_self_test", [str(XERO_PLUGIN_MCP), "self-test"])
+    add_step(report, "mcp_surface", [str(XERO_MCP), "surface", "--strict"])
+    for harness in ("generic", "claude-desktop", "cursor", "codex"):
+        add_step(report, f"mcp_print_config_{harness}", [str(XERO_MCP), "print-config", "--harness", harness])
+    add_step(report, "reconciliation_status", [str(XERO_RECONCILE), "status"])
+
+    if PLUGIN_VALIDATOR.exists() and PLUGIN.exists():
+        add_step(report, "plugin_validate", ["python3", str(PLUGIN_VALIDATOR), str(PLUGIN)])
+    else:
+        report["steps"].append(
+            {
+                "name": "plugin_validate",
+                "command": ["python3", str(PLUGIN_VALIDATOR), str(PLUGIN)],
+                "required": False,
+                "ok": True,
+                "returncode": 0,
+                "started_at": utc_seconds(),
+                "finished_at": utc_seconds(),
+                "stdout_json": None,
+                "stdout": "skipped: plugin validator or plugin path not present",
+                "stderr": "",
+            }
+        )
+
+    if args.prepare:
+        add_step(report, "mcp_prepare", [str(XERO_MCP), "prepare"])
+
+    status_step = run_step("mcp_status", [str(XERO_MCP), "status"])
+    report["steps"].append(status_step)
+    if mcp_package_present(status_step):
+        add_step(report, "mcp_protocol_smoke", [str(XERO_MCP), "protocol-smoke", "--strict"])
+    else:
+        report["steps"].append(
+            {
+                "name": "mcp_protocol_smoke",
+                "command": [str(XERO_MCP), "protocol-smoke", "--strict"],
+                "required": False,
+                "ok": True,
+                "returncode": 0,
+                "started_at": utc_seconds(),
+                "finished_at": utc_seconds(),
+                "stdout_json": None,
+                "stdout": "skipped: official MCP package cache is not prepared; rerun with --prepare to install it",
+                "stderr": "",
+            }
+        )
+
+    if args.live_api:
+        live_command = [str(XERO_SMOKE), "--live-api", "--accounts-limit", str(args.accounts_limit)]
+        if args.cdp_endpoint:
+            live_command.extend(["--cdp-endpoint", args.cdp_endpoint])
+        if args.target_id:
+            live_command.extend(["--target-id", args.target_id])
+        if args.expected:
+            live_command.extend(["--expected", args.expected])
+        if args.out_dir:
+            live_command.extend(["--out-dir", args.out_dir])
+        add_step(report, "xero_smoke_live", live_command, required=True)
+
+    failed_required = [step for step in report["steps"] if step["required"] and not step["ok"]]
+    report["ok"] = not failed_required
+    report["readiness"] = build_readiness(report)
+    report["architecture_coverage"] = build_architecture_coverage(report)
+    release_requested = bool(getattr(args, "release", False))
+    report["release_readiness"] = build_release_readiness(release=release_requested)
+    release_failed = bool(release_requested and not report["release_readiness"]["ok"])
+    if release_failed:
+        report["ok"] = False
+    report["summary"] = {
+        "step_count": len(report["steps"]),
+        "failed_required": len(failed_required) + (1 if release_failed else 0),
+        "failed": [step["name"] for step in failed_required] + (["release_packaged_oauth_app"] if release_failed else []),
+        "local_gate_ok": report["readiness"]["local_gate_ok"],
+        "architecture_coverage_ok": report["architecture_coverage"]["ok"],
+        "release_gate_ok": report["release_readiness"]["ok"] if release_requested else None,
+        "auth_ready": report["readiness"]["auth_ready"],
+        "live_smoke_ready": report["readiness"]["live_smoke_ready"],
+        "live_validation_pending": report["readiness"]["live_validation_pending"],
+    }
+    return report
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="validate-xero", description="Validate local Xero connector gates")
+    parser.add_argument("--prepare", action="store_true", help="Prepare/download the official MCP package before protocol smoke")
+    parser.add_argument("--live-api", action="store_true", help="After local gates, run live read-only API and MCP smoke using local OAuth state")
+    parser.add_argument("--release", action="store_true", help="Require packaged public OAuth app config for a distributable plugin release")
+    parser.add_argument("--accounts-limit", type=int, default=5, help="Maximum accounts returned by live accounts smoke")
+    parser.add_argument("--cdp-endpoint", help="User-provided already-authenticated CDP endpoint for optional reconciliation smoke")
+    parser.add_argument("--target-id", help="Specific CDP page target id from xero-reconcile inspect")
+    parser.add_argument("--expected", help="Expected reconciliation JSON for optional CDP dry-run matching")
+    parser.add_argument("--out-dir", help="Override smoke artifact directory for live smoke")
+    args = parser.parse_args(argv)
+    # Run the gate against the deterministic no-registry (single legacy) baseline
+    # so a real multi-business registry on the machine can't change tool names or
+    # pinned stores in the CLI/MCP subprocess steps. Multi-business behaviour is
+    # validated separately by tests/test_xero_profiles.py.
+    os.environ["ARC_FORGE_XERO_BUSINESS_REGISTRY"] = str(
+        Path(tempfile.mkdtemp(prefix="validate-xero-")) / "absent-businesses.json"
+    )
+    report = build_report(args)
+    print(json.dumps(report, indent=2, sort_keys=False))
+    return 0 if report["ok"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
