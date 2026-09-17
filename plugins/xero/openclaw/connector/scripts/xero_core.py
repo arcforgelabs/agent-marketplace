@@ -6496,7 +6496,7 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help=(
             "Target directory for the profile pack (company-profile.md, ap-policy.json, finance-rules.json, evidence/). "
-            "In the private finances repo, e.g. ~/repos/arc-forge-finances/accounting/orgs/<key>/"
+            "Operator-selected profile pack directory for this organisation, outside the installed package."
         ),
     )
     org_onboard.set_defaults(func=command_org_onboard)

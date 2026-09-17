@@ -34,7 +34,7 @@ The status output reports `optional_dependencies.websockets`,
 `optional_dependencies.node`, `optional_dependencies.playwright`,
 `optional_dependencies.playwright_apply_engine`, and `live_cdp_ready`. The
 apply engine first tries the local Node module resolver, then
-`$PLAYWRIGHT_MODULE`, then `~/repos/openclaw/node_modules/playwright`. Dry-run
+`$PLAYWRIGHT_MODULE`, then a Playwright install on `NODE_PATH`. Dry-run
 commands that work from saved statement snapshots do not need a live browser
 websocket connection.
 
