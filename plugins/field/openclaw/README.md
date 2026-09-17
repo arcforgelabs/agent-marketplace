@@ -11,15 +11,23 @@ Tested hosts: OpenClaw 2026.9.3 and 2026.9.4.
 
 ## Install
 
+`openclaw plugins install` copies the package. It does **not** accept a SecretRef,
+token, JSON config object, or `--config` flag. Noninteractive installs from GitHub
+require `--force` and `--accept-capabilities`. There is no plugin credential field:
+`origin` is a public HTTPS URL, not a store SecretRef. Do not run `secrets.request`
+and do not pass `--ref-source store` for Field.
+
 ```sh
-openclaw plugins install /absolute/path/to/package
-openclaw plugins enable arcforgelabs-field --accept-capabilities
+export OPENCLAW_CONFIG_PATH=/path/to/openclaw.json5
+openclaw plugins install /absolute/path/to/package \
+  --force --accept-capabilities --acknowledge-install-policy-warning
 openclaw config set plugins.entries.arcforgelabs-field.config.origin https://field.example.com
+openclaw plugins enable arcforgelabs-field --accept-capabilities
 openclaw mcp set field '{"url":"https://field.example.com/mcp","transport":"streamable-http","auth":"oauth","oauth":{"scope":"catalog.read catalog.write quote.read quote.draft"},"toolFilter":{"include":["field_*"]}}'
 openclaw mcp login field
 ```
 
-Installing the package does not grant Field access. The operator must complete `openclaw mcp login field` in a browser against that origin. OpenClaw stores only its own OAuth credentials. There is no plugin token field.
+Installing the package does not grant Field access. The operator must complete `openclaw mcp login field` in a browser against that origin. OpenClaw stores MCP OAuth credentials in its own auth store, not plugin config. There is no plugin bearer and no `accessToken`.
 
 `field_connection_status` prints the origin, MCP URL, and the exact set/login commands. It does not call Field.
 
