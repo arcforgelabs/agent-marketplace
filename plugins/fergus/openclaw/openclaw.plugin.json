@@ -1,0 +1,132 @@
+{
+  "id": "arcforgelabs-fergus",
+  "name": "Fergus by Arc Forge",
+  "description": "Unofficial Fergus trades job-management tools: jobs, quotes, calendar, customers, stock, and more. Not affiliated with Fergus.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "required": [
+      "apiToken"
+    ],
+    "properties": {
+      "apiToken": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "provider",
+              "id"
+            ],
+            "properties": {
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "env"
+                  },
+                  {
+                    "type": "string",
+                    "const": "file"
+                  },
+                  {
+                    "type": "string",
+                    "const": "exec"
+                  },
+                  {
+                    "type": "string",
+                    "const": "store"
+                  }
+                ]
+              },
+              "provider": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ],
+        "description": "Fergus company Personal Access Token. Prefer a host-managed SecretRef including source store."
+      },
+      "companyId": {
+        "type": "string",
+        "description": "Optional company guid from GET /company. Verified on fergus_status when set."
+      },
+      "maxRequestsPerMinute": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 100,
+        "description": "Local governor cap. Default 80, hard-capped at the vendor 100/min company budget."
+      },
+      "timezone": {
+        "type": "string",
+        "description": "Optional IANA timezone; no regional default."
+      }
+    },
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "fergus_status",
+      "fergus_jobs",
+      "fergus_quotes",
+      "fergus_calendar",
+      "fergus_customers",
+      "fergus_sites",
+      "fergus_contacts",
+      "fergus_users",
+      "fergus_notes",
+      "fergus_tasks",
+      "fergus_files",
+      "fergus_enquiries",
+      "fergus_invoices",
+      "fergus_time",
+      "fergus_stock",
+      "fergus_pricebooks",
+      "fergus_favourites"
+    ]
+  },
+  "skills": [
+    "./skills"
+  ],
+  "configContracts": {
+    "secretInputs": {
+      "paths": [
+        {
+          "path": "apiToken",
+          "ownerKind": "capability",
+          "expected": "string"
+        }
+      ]
+    }
+  },
+  "uiHints": {
+    "apiToken": {
+      "label": "Fergus API token",
+      "sensitive": true,
+      "help": "Company Personal Access Token from Fergus account settings. Store it as a SecretRef; never paste it into chat, git, or shell history."
+    },
+    "companyId": {
+      "label": "Company ID",
+      "help": "Optional company guid from GET /company. When set, fergus_status verifies it matches the token's company."
+    },
+    "maxRequestsPerMinute": {
+      "label": "Max requests per minute",
+      "help": "Local governor cap. Default 80, hard-capped at Fergus's 100 requests per minute per company."
+    },
+    "timezone": {
+      "label": "Timezone",
+      "help": "IANA timezone for this company. Optional; no regional default. Use timestamps with explicit UTC offsets."
+    }
+  }
+}

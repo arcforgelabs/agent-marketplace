@@ -1,0 +1,33 @@
+import type { FergusClient } from "./client.js";
+import { type ResolvedFergusConfig } from "./config.js";
+type Dict = Record<string, unknown>;
+export declare function status(client: FergusClient, config: ResolvedFergusConfig, _params?: Dict): Promise<{
+    connected: boolean;
+    companyId: string | null;
+    companyName: {} | null;
+    companyGuid: string | null;
+    userId: {} | null;
+    userEmail: {} | null;
+    timezone: string | null;
+    version: unknown;
+    rateLimit: import("./client.js").GovernorSnapshot;
+}>;
+export declare function jobs(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function quotes(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function calendar(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function customers(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function sites(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function contacts(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function users(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function notes(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function tasks(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function files(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function enquiries(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function invoices(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function timeEntries(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function stock(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function pricebooks(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export declare function favourites(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+/** Kept on the client for tests; omitted from the default operator tool list. */
+export declare function disconnect(client: FergusClient, _config: ResolvedFergusConfig, params: Dict): Promise<unknown>;
+export {};

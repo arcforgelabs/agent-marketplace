@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "69080bb5cf7c6e67713d3adfb8109fd03445ca9b",
+  "sourcePath": "plugins/fergus",
+  "files": {
+    "LICENSE": "04184cfab831fcae8ff9843374a03e17f9d7ca61f362fcaca37d29b83dc7c3b2",
+    "README.md": "531787fc28083152a67547681f3da30d8db0c2a2250ec9ea2b1621725c232530",
+    "lib/cli.d.ts": "43e818adf60173644896298637f47b01d5819b17eda46eaa32d0c7d64724d012",
+    "lib/cli.js": "8a57cc78f070829d12a0ef0a47985637ed919942d0a84749c809f70153709ce7",
+    "lib/client.d.ts": "a7f0e5e4c53e13d3f7444fea9ebfb016d686b8d30c699f0cb5f85c1ce58d8d3d",
+    "lib/client.js": "5455449046b65c91c6fc38f5c67128c7e59721a70d8964eb95df5fd890f514f8",
+    "lib/config.d.ts": "b697ec7447f1271235a4569f6d539e37f6f14190e5b489c3e9b5f7287b109692",
+    "lib/config.js": "68349830c994270de9b7e1cd39620648da090ddc48a1f01616c16a9662bd3e1d",
+    "lib/index.d.ts": "84b33238011ee44b8593e96cad4e247fca96dd08e6e27d10a1dc54e52e83bdc1",
+    "lib/index.js": "f9d4fee0cffa55b1c9aae4fd097a48f4c1a2d0ec562499ec75b5be3458dd0523",
+    "lib/operations.d.ts": "2e3df4d4fe59a922e1a5d7cfb480506c817ffd3ae2e1ae742fabce85022c1167",
+    "lib/operations.js": "777ead253b63af3e44d8e88e997c73c814b1ea88c973bdde41d56aafd05cda9b",
+    "openclaw.plugin.json": "80bd0bf808cc0fcb101a505889f478777f16e7732397de4bf8b7c1ff155a43db",
+    "package.json": "105b432e27f7e788c758ca33b815955c115b2d07b1e8ecff700338018852e22b",
+    "scripts/augment-manifest.mjs": "ae3b84a9a96824cba90b923cd06dc97a8f4eaa2bb784efd7de28fd91c758c2a2",
+    "skills/fergus/ACCOUNT.template.md": "f165242387d84fc9776dcfb1dee2df700a646e9f7fd107bd1b911cc0e44199ec",
+    "skills/fergus/SKILL.md": "4443da67f5a7be6a0614f2d608904ca8195477d14a39aa7503cc34e2eb5c9fa9",
+    "src/cli.ts": "e3c8ff3982e52ef30024419bcbaf9549a076a9039736f94d4ab4c7a7d7b38aec",
+    "src/client.test.ts": "c24aca298ddcdaf97f652866099416ba4a9c24a91a83e7deb238f2537d556de1",
+    "src/client.ts": "49d5eeafd7eb5e8b92c3895c66633a87953ce1eaa091ed6c9352133f62d375c8",
+    "src/config.ts": "6dbebac0efff954b3134166a4f6bc1eb7bf5c580f241de75e2d1a53f4e7ba73e",
+    "src/index.test.ts": "19b0daf5cc0ef8b7e05bb32491fde5cff38b81dffe87a1aed2cf0315635c8906",
+    "src/index.ts": "3805bb7fe7bb677ee30d5bcdfb87663a6d7fe4e6bd81618432ee5a84a1eef691",
+    "src/operations.ts": "59cd708dc1d6d4ace5326b14e24cc16c6751fff7313ac295ccb7a3741af0b23c",
+    "src/release.test.ts": "613e760cb1b7d60eadd1990645ca30aa8a4ae46ab2723be331c1f646215fd8f9",
+    "tsconfig.json": "f4f0d1f5d51b8e091ea6c9f315865d68352aa9af01a0ab18990108050fc8cb9e",
+    "vitest.config.ts": "4f49d01f0120eff8b5bac0c9abc9bf6263c8da9834d288ff884c1e397436209f"
+  }
+}
