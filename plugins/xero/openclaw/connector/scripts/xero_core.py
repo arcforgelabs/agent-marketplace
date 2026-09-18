@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 import xero_ap_policy
+import xero_bill_inbox
 import xero_finance_rules
 import xero_ingestion
 import xero_operation_lock
@@ -215,8 +216,10 @@ REFERENCE_KINDS = {
     },
 }
 DEFAULT_CALLBACK_HOST = "localhost"
+CALLBACK_BIND_HOST = "127.0.0.1"
 DEFAULT_CALLBACK_PORT = 8765
 DEFAULT_TOKEN_PATH = Path.home() / ".config" / "arc-forge-tools" / "xero" / "tokens.json"
+DEFAULT_OAUTH_PENDING_DIR = Path.home() / ".config" / "arc-forge-tools" / "xero" / "oauth-pending"
 DEFAULT_TOKEN_KEY_PATH = Path.home() / ".config" / "arc-forge-tools" / "xero" / "token-store.key"
 DEFAULT_PUBLIC_OAUTH_APP_PATH = Path.home() / ".config" / "arc-forge-tools" / "xero" / "oauth-app.json"
 DEFAULT_RATE_LIMIT_PATH = Path.home() / ".config" / "arc-forge-tools" / "xero" / "rate-limit-status.json"
@@ -601,8 +604,10 @@ def resolve_scope_with_bundles(
 def build_app_config_report(args: argparse.Namespace) -> dict[str, Any]:
     port = int(args.port or DEFAULT_CALLBACK_PORT)
     callback = f"http://{DEFAULT_CALLBACK_HOST}:{port}/callback"
+    public_callback = resolve_redirect_uri(port=port, explicit=getattr(args, "redirect_uri", None))
     scopes = scope_list(args.scope)
     client_id, client_id_source = resolve_client_id_info(args.client_id)
+    redirect_uris = [callback] if public_callback == callback else [callback, public_callback]
     return {
         "ok": bool(client_id) or not args.strict,
         "mode": "xero-oauth-app-config",
@@ -615,15 +620,22 @@ def build_app_config_report(args: argparse.Namespace) -> dict[str, Any]:
             "client_id": redact_value(client_id) if client_id else None,
             "client_id_source": client_id_source,
             "client_secret_required": False,
-            "redirect_uris": [callback],
+            "redirect_uris": redirect_uris,
             "scope_count": len(scopes),
             "scopes": scopes,
         },
         "local_callback": {
-            "host": DEFAULT_CALLBACK_HOST,
+            "host": CALLBACK_BIND_HOST,
             "port": port,
             "path": "/callback",
             "url": callback,
+            "bind": CALLBACK_BIND_HOST,
+        },
+        "gateway_callback": {
+            "path": "/xero/oauth/callback",
+            "redirect_uri": public_callback,
+            "loopback": redirect_uri_is_loopback(public_callback),
+            "pending_dir": str(oauth_pending_dir()),
         },
         "oauth_flow": {
             "grant": "authorization_code",
@@ -632,10 +644,19 @@ def build_app_config_report(args: argparse.Namespace) -> dict[str, Any]:
             "opens_user_browser": True,
             "user_completes_login_mfa_consent": True,
             "local_cli_captures_callback_only": True,
+            "vps_uses_gateway_https_callback": not redirect_uri_is_loopback(public_callback),
         },
         "environment": {
             "required_for_login": [] if client_id else ["ARC_FORGE_XERO_CLIENT_ID or packaged oauth-app.json"],
-            "optional": ["XERO_TOKEN_STORE", "ARC_FORGE_XERO_TOKEN_STORE_MODE", "ARC_FORGE_XERO_TOKEN_KEY_FILE", "XERO_SCOPES", "ARC_FORGE_XERO_OAUTH_APP_CONFIG"],
+            "optional": [
+                "XERO_TOKEN_STORE",
+                "ARC_FORGE_XERO_TOKEN_STORE_MODE",
+                "ARC_FORGE_XERO_TOKEN_KEY_FILE",
+                "XERO_SCOPES",
+                "ARC_FORGE_XERO_OAUTH_APP_CONFIG",
+                "ARC_FORGE_XERO_REDIRECT_URI",
+                "ARC_FORGE_XERO_OAUTH_PENDING_DIR",
+            ],
         },
         "public_oauth_config_paths": [str(path) for path in public_oauth_config_paths()],
         "next_steps": [
@@ -1299,13 +1320,74 @@ def parse_json(raw: str) -> Any:
         return None
 
 
+def oauth_pending_dir() -> Path:
+    raw = (os.environ.get("ARC_FORGE_XERO_OAUTH_PENDING_DIR") or "").strip()
+    return Path(raw).expanduser().resolve() if raw else DEFAULT_OAUTH_PENDING_DIR
+
+
+def resolve_redirect_uri(*, port: int, explicit: str | None = None) -> str:
+    value = (explicit or os.environ.get("ARC_FORGE_XERO_REDIRECT_URI") or "").strip()
+    if value:
+        return value
+    for path in public_oauth_config_paths():
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        uris = payload.get("redirect_uris") if isinstance(payload, dict) else None
+        if not isinstance(uris, list):
+            continue
+        https = [str(item).strip() for item in uris if str(item).strip().startswith("https://")]
+        if https:
+            return https[0]
+    return f"http://{DEFAULT_CALLBACK_HOST}:{int(port)}/callback"
+
+
+def write_oauth_expect(state: str) -> Path:
+    directory = oauth_pending_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    os.chmod(directory, 0o700)
+    path = directory / f"{state}.expect"
+    path.write_text(json.dumps({"state": state}) + "\n", encoding="utf-8")
+    os.chmod(path, 0o600)
+    return path
+
+
+def read_oauth_callback(state: str) -> dict[str, str] | None:
+    path = oauth_pending_dir() / f"{state}.json"
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return {str(key): str(value) for key, value in payload.items() if value is not None}
+
+
+def consume_oauth_pending(state: str) -> None:
+    directory = oauth_pending_dir()
+    for suffix in (".expect", ".json"):
+        path = directory / f"{state}{suffix}"
+        if path.exists():
+            path.unlink()
+
+
+def redirect_uri_is_loopback(redirect_uri: str) -> bool:
+    parsed = urllib.parse.urlparse(redirect_uri)
+    return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
+
+
 def find_open_port(preferred_port: int) -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         try:
-            sock.bind((DEFAULT_CALLBACK_HOST, preferred_port))
+            sock.bind((CALLBACK_BIND_HOST, preferred_port))
             return preferred_port
         except OSError:
-            sock.bind((DEFAULT_CALLBACK_HOST, 0))
+            sock.bind((CALLBACK_BIND_HOST, 0))
             return int(sock.getsockname()[1])
 
 
@@ -1337,18 +1419,34 @@ class OAuthCallbackServer(http.server.HTTPServer):
         self.callback_params = None
 
 
-def wait_for_callback(port: int, timeout_seconds: int) -> dict[str, str]:
-    server = OAuthCallbackServer((DEFAULT_CALLBACK_HOST, port))
-    server.timeout = 1
+def wait_for_callback(
+    port: int,
+    timeout_seconds: int,
+    *,
+    state: str | None = None,
+    listen: bool = True,
+) -> dict[str, str]:
+    server = None
+    if listen:
+        server = OAuthCallbackServer((CALLBACK_BIND_HOST, port))
+        server.timeout = 1
     deadline = time.monotonic() + timeout_seconds
     try:
         while time.monotonic() < deadline:
-            server.handle_request()
-            if server.callback_params is not None:
-                return server.callback_params
+            if state:
+                params = read_oauth_callback(state)
+                if params is not None:
+                    return params
+            if server is not None:
+                server.handle_request()
+                if server.callback_params is not None:
+                    return server.callback_params
+            elif state:
+                time.sleep(0.25)
+        raise XeroCliError("Timed out waiting for Xero OAuth callback.")
     finally:
-        server.server_close()
-    raise XeroCliError("Timed out waiting for Xero OAuth callback.")
+        if server is not None:
+            server.server_close()
 
 
 def exchange_authorization_code(*, client_id: str, code: str, redirect_uri: str, code_verifier: str) -> dict[str, Any]:
@@ -1426,7 +1524,8 @@ def command_auth_login(args: argparse.Namespace) -> int:
             granted = ""
     scope = resolve_scope_with_bundles(scope=args.scope, add_bundles=add_bundles, granted=granted)
     port = find_open_port(args.port)
-    redirect_uri = f"http://{DEFAULT_CALLBACK_HOST}:{port}/callback"
+    redirect_uri = resolve_redirect_uri(port=port, explicit=getattr(args, "redirect_uri", None))
+    listen_loopback = redirect_uri_is_loopback(redirect_uri)
     state = create_state()
     code_verifier = create_code_verifier()
     code_challenge = create_code_challenge(code_verifier)
@@ -1442,15 +1541,26 @@ def command_auth_login(args: argparse.Namespace) -> int:
         }
     )
     authorize_url = f"{AUTHORIZE_URL}?{query}"
+    write_oauth_expect(state)
 
     print("Opening Xero authorization in your browser.")
     print(f"Redirect URI: {redirect_uri}")
+    if not listen_loopback:
+        print("Waiting for the Gateway /xero/oauth/callback route (no SSH tunnel).")
     if args.print_url:
         print(authorize_url)
     else:
         webbrowser.open(authorize_url)
 
-    params = wait_for_callback(port, args.timeout)
+    try:
+        params = wait_for_callback(
+            port,
+            args.timeout,
+            state=state,
+            listen=listen_loopback,
+        )
+    finally:
+        consume_oauth_pending(state)
     if params.get("state") != state:
         raise XeroCliError("OAuth state mismatch. Aborting.")
     if params.get("error"):
@@ -4579,6 +4689,161 @@ def command_lock_status(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Unentered-bill inbox (email-to-bills / published Hubdoc DRAFT ACCPAY)
+# ---------------------------------------------------------------------------
+
+
+def command_bills_inbox(args: argparse.Namespace) -> int:
+    """List supplier bills waiting to be coded (default: DRAFT ACCPAY)."""
+    payload, tenant_id = resolve_active_auth(args)
+    headers = accounting_headers(payload, tenant_id)
+    statuses = list(args.status or xero_bill_inbox.DEFAULT_INBOX_STATUSES)
+    where = xero_bill_inbox.inbox_where(statuses)
+    objects = paged_accounting_get("Invoices", "Invoices", headers, where=where)
+    bills = []
+    skipped_wrong_type = 0
+    for obj in objects:
+        if not isinstance(obj, dict):
+            continue
+        if str(obj.get("Type") or "").upper() != "ACCPAY":
+            skipped_wrong_type += 1
+            continue
+        summary = xero_bill_inbox.summarize_bill(obj)
+        if args.with_attachments and not summary.get("has_attachments"):
+            continue
+        bills.append(summary)
+    limit = int(args.limit) if args.limit else None
+    truncated = bool(limit is not None and len(bills) > limit)
+    if limit is not None:
+        bills = bills[:limit]
+    write_json(
+        {
+            "ok": True,
+            "mode": "bill-inbox",
+            "tenant_id": tenant_id,
+            "where": where,
+            "statuses": statuses,
+            "with_attachments": bool(args.with_attachments),
+            "count": len(bills),
+            "truncated": truncated,
+            "skipped_wrong_type": skipped_wrong_type,
+            "bills": bills,
+            "caveats": list(xero_bill_inbox.CAVEATS),
+            "note": (
+                "DRAFT ACCPAY is the email-to-bills / published-Hubdoc review queue. "
+                "Use `xero bills review --invoice-id` to pull the original PDF."
+            ),
+        }
+    )
+    return 0
+
+
+def command_bills_review(args: argparse.Namespace) -> int:
+    """Load one ACCPAY bill, download original attachments, extract, suggest coding."""
+    payload, tenant_id = resolve_active_auth(args)
+    headers = accounting_headers(payload, tenant_id)
+    invoice_id = str(args.invoice_id or "").strip()
+    if not invoice_id:
+        raise XeroCliError("--invoice-id is required.")
+    response = http_get_json(
+        f"{ACCOUNTING_API_BASE}/Invoices/{urllib.parse.quote(invoice_id, safe='')}",
+        headers,
+    )
+    records = response.get("Invoices") if isinstance(response, dict) else None
+    if not isinstance(records, list) or not records or not isinstance(records[0], dict):
+        raise XeroCliError(f"Bill not found: {invoice_id}")
+    obj = records[0]
+    if str(obj.get("Type") or "").upper() != "ACCPAY":
+        raise XeroCliError(
+            f"{invoice_id} is Type={obj.get('Type')!r}, not ACCPAY. Inbox review is supplier bills only."
+        )
+    bill = xero_bill_inbox.summarize_bill(obj)
+    attach_endpoint = f"{evidence_base_path('bill', invoice_id)}/Attachments"
+    attach_response = http_get_json(f"{ACCOUNTING_API_BASE}/{attach_endpoint}", headers)
+    attachments = attach_response.get("Attachments") if isinstance(attach_response, dict) else None
+    if not isinstance(attachments, list):
+        attachments = []
+    out_dir = Path(args.out_dir).expanduser().resolve() if args.out_dir else xero_bill_inbox.default_review_dir(invoice_id)
+    download = not bool(args.no_download)
+    extracted: list[dict[str, Any]] = []
+    if download:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for item in attachments:
+            if not isinstance(item, dict):
+                continue
+            filename = xero_bill_inbox.safe_filename(str(item.get("FileName") or item.get("fileName") or ""))
+            endpoint = f"{attach_endpoint}/{urllib.parse.quote(filename, safe='')}"
+            body, attach_headers = http_get_bytes(f"{ACCOUNTING_API_BASE}/{endpoint}", headers)
+            dest = out_dir / filename
+            dest.write_bytes(body)
+            info = xero_bill_inbox.extract_attachment(
+                dest,
+                out_dir,
+                max_pages=int(args.max_pages or xero_bill_inbox.DEFAULT_MAX_RENDER_PAGES),
+            )
+            info["content_type"] = attach_headers.get("Content-Type") or attach_headers.get("content-type")
+            info["xero_filename"] = filename
+            extracted.append(info)
+    else:
+        for item in attachments:
+            if isinstance(item, dict):
+                extracted.append(
+                    {
+                        "filename": item.get("FileName"),
+                        "mime_type": item.get("MimeType"),
+                        "downloaded": False,
+                    }
+                )
+    rules_file = xero_finance_rules.rules_path(args.rules)
+    try:
+        rules = xero_finance_rules.load_rules(rules_file)
+    except xero_finance_rules.FinanceRulesError:
+        rules = {"mappings": {"account": [], "tax": [], "contact": [], "item": []}}
+        rules_file_note = f"finance-rules missing or invalid at {rules_file}; coding suggestions skipped"
+    else:
+        rules_file_note = str(rules_file)
+    extra = [str(bill.get("invoice_number") or ""), str(bill.get("reference") or "")]
+    coding = xero_bill_inbox.suggest_coding(str(bill.get("contact_name") or ""), rules, extra_values=extra)
+    has_attachments = bool(bill.get("has_attachments") or extracted)
+    write_json(
+        {
+            "ok": True,
+            "mode": "bill-review",
+            "tenant_id": tenant_id,
+            "invoice_id": invoice_id,
+            "bill": bill,
+            "attachment_count": len(attachments),
+            "out_dir": str(out_dir) if download else None,
+            "attachments": extracted,
+            "coding": coding,
+            "rules": rules_file_note,
+            "caveats": list(xero_bill_inbox.CAVEATS),
+            "next_steps": xero_bill_inbox.next_steps(
+                invoice_id,
+                has_attachments=has_attachments,
+                unmapped=bool(coding.get("unmapped")),
+            ),
+        }
+    )
+    return 0
+
+
+def command_bills_learn(args: argparse.Namespace) -> int:
+    """Persist a reviewed supplier → account/tax mapping. Does not train Xero OCR."""
+    path = xero_finance_rules.rules_path(args.rules)
+    result = xero_bill_inbox.learn_account_mapping(
+        path,
+        supplier=str(args.supplier or ""),
+        account_code=str(args.account_code or ""),
+        tax_type=args.tax_type,
+        contact_name_value=args.contact_name,
+        note=args.note,
+    )
+    write_json(result)
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Phase 3 — Ingestion: sidecar parse (xero ap ingest-sidecar)
 # ---------------------------------------------------------------------------
 
@@ -6021,6 +6286,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     login.add_argument("--port", type=int, default=DEFAULT_CALLBACK_PORT, help="Preferred localhost callback port")
+    login.add_argument(
+        "--redirect-uri",
+        help=(
+            "Exact OAuth redirect URI registered on the Xero app. "
+            "Use https://<gateway-public-origin>/xero/oauth/callback on a VPS. "
+            "Defaults to ARC_FORGE_XERO_REDIRECT_URI, then the first https URI in oauth-app.json, "
+            "then http://localhost:<port>/callback."
+        ),
+    )
     login.add_argument("--timeout", type=int, default=300, help="Callback timeout in seconds")
     login.add_argument("--print-url", action="store_true", help="Print authorize URL instead of opening browser")
     login.set_defaults(func=command_auth_login)
@@ -6383,6 +6657,64 @@ def build_parser() -> argparse.ArgumentParser:
     documents_action.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     documents_action.add_argument("--out", help="Write dry-run report to JSON file")
     documents_action.set_defaults(func=command_documents_action)
+
+    bills = sub.add_parser(
+        "bills",
+        help="Unentered supplier-bill inbox: list DRAFT ACCPAY, review original PDFs, learn local coding",
+    )
+    bills_sub = bills.add_subparsers(dest="bills_command", required=True)
+    bills_inbox = bills_sub.add_parser(
+        "inbox",
+        help="List email-to-bills / published-Hubdoc supplier bills waiting to be coded (DRAFT ACCPAY)",
+    )
+    bills_inbox.add_argument(
+        "--status",
+        nargs="+",
+        choices=list(xero_bill_inbox.INBOX_STATUSES),
+        help="Bill statuses to include (default: DRAFT)",
+    )
+    bills_inbox.add_argument(
+        "--with-attachments",
+        action="store_true",
+        help="Only return bills that already have a stapled supplier file",
+    )
+    bills_inbox.add_argument("--limit", type=int, help="Cap the number of bills returned")
+    bills_inbox.add_argument("--tenant-id", help="Override active tenant id")
+    bills_inbox.set_defaults(func=command_bills_inbox)
+    bills_review = bills_sub.add_parser(
+        "review",
+        help="Download the original supplier file, extract text/images, and suggest finance-rules coding",
+    )
+    bills_review.add_argument("--invoice-id", required=True, help="Xero InvoiceID of the ACCPAY bill")
+    bills_review.add_argument(
+        "--out-dir",
+        help="Directory for downloaded attachments and page images (default: ~/.config/arc-forge-tools/xero/bill-inbox/<id>)",
+    )
+    bills_review.add_argument(
+        "--no-download",
+        action="store_true",
+        help="Skip downloading attachments; return Xero fields and attachment metadata only",
+    )
+    bills_review.add_argument(
+        "--max-pages",
+        type=int,
+        default=xero_bill_inbox.DEFAULT_MAX_RENDER_PAGES,
+        help="Max PDF pages to rasterize or embedded JPEGs to extract (default: 4)",
+    )
+    bills_review.add_argument("--rules", help="Override finance-rules path")
+    bills_review.add_argument("--tenant-id", help="Override active tenant id")
+    bills_review.set_defaults(func=command_bills_review)
+    bills_learn = bills_sub.add_parser(
+        "learn",
+        help="Persist a reviewed supplier → account/tax mapping in local finance-rules (does not train Xero OCR)",
+    )
+    bills_learn.add_argument("--supplier", required=True, help="Supplier name as it appears on the bill")
+    bills_learn.add_argument("--account-code", required=True, help="Xero account code to remember for this supplier")
+    bills_learn.add_argument("--tax-type", help="Xero tax type (e.g. INPUT)")
+    bills_learn.add_argument("--contact-name", help="Canonical Xero contact name to remember")
+    bills_learn.add_argument("--note", help="Optional review note stored on the mapping")
+    bills_learn.add_argument("--rules", help="Override finance-rules path")
+    bills_learn.set_defaults(func=command_bills_learn)
 
     ap = sub.add_parser("ap", help="Accounts-payable bill lifecycle (profile-pack-driven)")
     ap_sub = ap.add_subparsers(dest="ap_command", required=True)

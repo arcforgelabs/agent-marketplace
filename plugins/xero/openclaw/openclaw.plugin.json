@@ -2,7 +2,7 @@
   "id": "arcforgelabs-xero",
   "name": "Xero",
   "description": "Native OpenClaw Gateway bridge for the Arc Forge Xero connector.",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "skills": [
     "./skills"
   ],
@@ -64,7 +64,9 @@
   },
   "contracts": {
     "tools": [
-      "xero_status"
+      "xero_status",
+      "xero_evidence_attachments",
+      "xero_evidence_audit"
     ]
   }
 }

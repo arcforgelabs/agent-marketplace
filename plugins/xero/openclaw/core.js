@@ -1,6 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { access } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -176,6 +177,103 @@ export async function readLocalTenants(config = {}) {
   };
 }
 
+function oauthPendingDir() {
+  const override = String(process.env.ARC_FORGE_XERO_OAUTH_PENDING_DIR || "").trim();
+  return override
+    ? path.resolve(override)
+    : path.join(os.homedir(), ".config", "arc-forge-tools", "xero", "oauth-pending");
+}
+
+function oauthCallbackHtml() {
+  return "<!doctype html><meta charset=\"utf-8\"><title>Xero</title><p>Xero authorization captured. You can close this tab.</p>";
+}
+
+async function handleOAuthCallback(req, res) {
+  if (req.method !== "GET") {
+    res.statusCode = 405;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Method not allowed");
+    return true;
+  }
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+  const state = url.searchParams.get("state") || "";
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(state)) {
+    res.statusCode = 400;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Missing or invalid OAuth state.");
+    return true;
+  }
+  const directory = oauthPendingDir();
+  const expectPath = path.join(directory, `${state}.expect`);
+  const callbackPath = path.join(directory, `${state}.json`);
+  if (!existsSync(expectPath)) {
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("No pending Xero login matches this callback.");
+    return true;
+  }
+  const payload = {
+    state,
+    code: url.searchParams.get("code") || "",
+    error: url.searchParams.get("error") || "",
+    error_description: url.searchParams.get("error_description") || "",
+  };
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await writeFile(callbackPath, `${JSON.stringify(payload)}\n`, { encoding: "utf8", mode: 0o600 });
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.end(oauthCallbackHtml());
+  return true;
+}
+
+export async function runCliJson(config = {}, args = []) {
+  const paths = pathsFor(config);
+  const timeoutMs = config.commandTimeoutMs || 30000;
+  await access(paths.cli);
+  return execJson(paths.cli, args, { cwd: paths.root, timeoutMs });
+}
+
+export async function runEvidenceAttachments(config = {}, params = {}) {
+  const action = params.action;
+  const kind = params.kind;
+  const objectId = params.object_id;
+  if (!action || !kind || !objectId) {
+    return { ok: false, error: "action, kind, and object_id are required." };
+  }
+  if (action === "list") {
+    const args = ["evidence", "attachments", "list", kind, objectId];
+    if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
+    return runCliJson(config, args);
+  }
+  if (action === "download") {
+    if (!params.filename || !params.out_path) {
+      return { ok: false, error: "download requires filename and out_path." };
+    }
+    const args = [
+      "evidence",
+      "attachments",
+      "download",
+      kind,
+      objectId,
+      params.filename,
+      "--out",
+      params.out_path,
+    ];
+    if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
+    return runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
+  }
+  return { ok: false, error: "action must be list or download." };
+}
+
+export async function runEvidenceAudit(config = {}, params = {}) {
+  const args = ["evidence", "audit"];
+  const kinds = Array.isArray(params.kinds) && params.kinds.length ? params.kinds : ["bill"];
+  args.push("--kinds", ...kinds);
+  if (params.out_path) args.push("--out", params.out_path);
+  if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
+  return runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
+}
+
 function gatewayHandler(run) {
   return async ({ respond }) => {
     try {
@@ -239,5 +337,11 @@ export default {
     const config = api.pluginConfig || {};
     registerGateway(api, config);
     registerCli(api, config);
+    api.registerHttpRoute({
+      path: "/xero/oauth/callback",
+      auth: "plugin",
+      match: "exact",
+      handler: handleOAuthCallback,
+    });
   },
 };
