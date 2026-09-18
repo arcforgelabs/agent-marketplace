@@ -20,8 +20,7 @@ test("marketplace manifests expose Arc Forge / Field across all supported hosts"
   for (const [host, relativePath] of manifests) {
     const manifest = JSON.parse(await readFile(join(repoRoot, relativePath), "utf8"));
     assert.equal(manifest.name, "arc-forge-agents", `${host} marketplace name`);
-    assert.equal(manifest.plugins.length, 1, `${host} plugin count`);
-    assert.equal(manifest.plugins[0].name, "field", `${host} Field entry`);
+    assert.ok(manifest.plugins.some((p) => p.name === "field"), `${host} Field entry`);
   }
 
   for (const hostDir of [".codex-plugin", ".claude-plugin", ".cursor-plugin"]) {

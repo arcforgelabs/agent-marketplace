@@ -15,6 +15,11 @@
       "name": "field",
       "source": "field",
       "description": "Manage Field jobs, quotes, invoices, email templates, and catalog workflows"
+    },
+    {
+      "name": "replit-github",
+      "source": "replit-github",
+      "description": "Wire a Replit project to a GitHub repo so the Replit Agent can push, open PRs, and pull main; diagnose or repair Replit/GitHub history drift."
     }
   ]
 }

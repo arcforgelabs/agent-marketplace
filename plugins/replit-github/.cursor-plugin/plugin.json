@@ -1,0 +1,15 @@
+{
+  "name": "replit-github",
+  "displayName": "Replit Github",
+  "version": "0.1.0",
+  "description": "Wire a Replit project to a GitHub repo so the Replit Agent can push, open PRs, and pull main; diagnose or repair Replit/GitHub history drift; set up new Replit projects or accounts against arcforgelabs repos.",
+  "license": "MIT",
+  "keywords": [
+    "skill",
+    "replit",
+    "github"
+  ],
+  "author": {
+    "name": "Arc Forge Labs"
+  }
+}
