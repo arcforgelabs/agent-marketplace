@@ -11,6 +11,7 @@
   "deterministic_validators": [
     "connectors/xero/scripts/validate-xero",
     "python3 connectors/xero/tests/test_xero_core.py",
+    "python3 connectors/xero/tests/test_xero_bill_inbox.py",
     "scripts/forge-tools module validate connectors/xero",
     "connectors/xero/cli/xero doctor",
     "connectors/xero/cli/xero auth app-config",

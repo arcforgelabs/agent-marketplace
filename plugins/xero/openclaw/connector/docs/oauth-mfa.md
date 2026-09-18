@@ -13,8 +13,11 @@ Xero OAuth app.
 3. User signs in with their Xero account.
 4. User completes Xero MFA if required.
 5. User selects the Xero organisation.
-6. Xero redirects to `http://localhost:<port>/callback`.
-7. The local CLI exchanges the code and stores token state.
+6. Xero redirects to the registered URI:
+   - local/dev: `http://localhost:<port>/callback` (IPv4 waiter on `127.0.0.1`)
+   - VPS/OpenClaw Gateway: `https://<gateway-public-origin>/xero/oauth/callback`
+     (plugin HTTP route, no SSH tunnel). Cloudflare Access must bypass that exact path.
+7. The CLI exchanges the code and stores token state.
 8. The MCP wrapper requests fresh access tokens from `xero auth token`.
 
 The connector does not receive or automate the user's Xero password or MFA code.
@@ -28,8 +31,11 @@ Arc Forge-owned public OAuth app:
 - Client secret: not required and not used.
 - Public client ID source: command argument, environment variable, local user
   config, plugin packaged config, or connector packaged config.
-- Redirect URI: `http://localhost:<port>/callback`, defaulting to
-  `http://localhost:8765/callback`.
+- Redirect URIs: `http://localhost:<port>/callback` (default) and, for a headless
+  Gateway, `https://<public-origin>/xero/oauth/callback`. Both must be registered
+  on the Arc Forge Xero app. Set `ARC_FORGE_XERO_REDIRECT_URI` or pass
+  `--redirect-uri` on `xero auth login` so the authorize URL matches the VPS
+  callback. Do not use SSH `-L` for this.
 - Scopes: the default full-power MVP accounting scope set, including
   `offline_access` for refresh tokens.
 
@@ -40,6 +46,11 @@ Operators can write the shared public client ID to local user config with
 client secret.
 They need only their own Xero account access once the shared public client ID is
 packaged with the plugin or written to local config.
+
+On a headless OpenClaw VPS, prefer the Gateway HTTPS callback over SSH port
+forwarding. The plugin serves `GET /xero/oauth/callback` (`auth: plugin`). Put
+that exact path on the Xero app redirect list and exclude it from Cloudflare
+Access. Then `xero auth login --redirect-uri https://<public-origin>/xero/oauth/callback`.
 
 ## Token Handling
 

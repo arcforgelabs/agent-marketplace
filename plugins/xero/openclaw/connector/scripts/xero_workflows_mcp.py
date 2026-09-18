@@ -5,7 +5,7 @@ The official Xero MCP wrapper (xero-official) remains the source for official
 Xero API tools. This companion (xero-workflows) exposes repo-local workflow
 helpers that are intentionally not in the official package: dry-run-first
 document/reference/pre-work helpers, finance-rule checks, snapshots, audit
-checks, and CDP-gated reconciliation.
+checks, unentered-bill inbox review, and CDP-gated reconciliation.
 """
 
 from __future__ import annotations
@@ -117,6 +117,131 @@ TOOLS: list[dict[str, Any]] = [
             required=["kind", "value"],
         ),
         "annotations": {"readOnlyHint": True, "openWorldHint": True},
+    },
+    {
+        "name": "xero_evidence_attachments",
+        "description": (
+            "Read-only: list or download the original file stapled to a Xero bill/invoice "
+            "(the uploaded PDF/JPEG), not Xero's generated invoice PDF. Use this for OCR or "
+            "extracting supplier document content. Download writes bytes to out_path and "
+            "returns metadata only."
+        ),
+        "inputSchema": object_schema(
+            {
+                "action": enum_schema(["list", "download"]),
+                "kind": enum_schema(
+                    [
+                        "bill",
+                        "invoice",
+                        "credit-note",
+                        "quote",
+                        "contact",
+                        "bank-transaction",
+                        "bank-transfer",
+                        "manual-journal",
+                        "purchase-order",
+                    ]
+                ),
+                "object_id": {"type": "string", "description": "Xero object UUID (InvoiceID for bills)"},
+                "filename": {"type": "string", "description": "Required for download"},
+                "out_path": {"type": "string", "description": "Local file path for download"},
+                "tenant_id": {"type": "string"},
+            },
+            required=["action", "kind", "object_id"],
+        ),
+        "annotations": {"readOnlyHint": True, "openWorldHint": True},
+    },
+    {
+        "name": "xero_evidence_audit",
+        "description": (
+            "Read-only sweep: which bills/invoices/bank transactions lack a stapled source "
+            "document (HasAttachments=false). Returns counts plus missing records."
+        ),
+        "inputSchema": object_schema(
+            {
+                "kinds": {
+                    "type": "array",
+                    "items": enum_schema(["bank-transaction", "bill", "invoice"]),
+                    "description": "Object kinds to scan (default: bill)",
+                },
+                "out_path": {"type": "string", "description": "Optional JSON report path"},
+                "tenant_id": {"type": "string"},
+            },
+        ),
+        "annotations": {"readOnlyHint": True, "openWorldHint": True},
+    },
+    {
+        "name": "xero_bills_inbox",
+        "description": (
+            "Unentered bills / email-to-bills / forwarded PDF inbox. "
+            "Lists DRAFT ACCPAY supplier bills waiting to be coded. "
+            "Hubdoc unpublished documents are not returned. Xero OCR fields are untrusted."
+        ),
+        "inputSchema": object_schema(
+            {
+                "status": {
+                    "type": "array",
+                    "items": enum_schema(["DRAFT", "SUBMITTED"]),
+                    "description": "Bill statuses to include (default: DRAFT)",
+                },
+                "with_attachments": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Only bills that already have a stapled supplier file",
+                },
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+                "tenant_id": {"type": "string"},
+            },
+        ),
+        "annotations": {"readOnlyHint": True, "openWorldHint": True},
+    },
+    {
+        "name": "xero_bills_review",
+        "description": (
+            "Review one unentered supplier bill: Xero fields, original PDF/JPEG download, "
+            "text/image extract, and local finance-rules coding suggestion. "
+            "Does not update Xero. Native OCR is untrusted and does not learn."
+        ),
+        "inputSchema": object_schema(
+            {
+                "invoice_id": {"type": "string", "description": "Xero InvoiceID of the ACCPAY bill"},
+                "out_dir": {"type": "string", "description": "Directory for downloaded attachments and page images"},
+                "no_download": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Skip downloading attachments",
+                },
+                "max_pages": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "default": 4,
+                },
+                "rules": {"type": "string"},
+                "tenant_id": {"type": "string"},
+            },
+            required=["invoice_id"],
+        ),
+        "annotations": {"readOnlyHint": True, "openWorldHint": True},
+    },
+    {
+        "name": "xero_bills_learn",
+        "description": (
+            "Remember a reviewed supplier → Xero account/tax mapping in local finance-rules. "
+            "This is the learning layer; it does not train Xero OCR."
+        ),
+        "inputSchema": object_schema(
+            {
+                "supplier": {"type": "string", "description": "Supplier name as it appears on the bill"},
+                "account_code": {"type": "string", "description": "Xero account code"},
+                "tax_type": {"type": "string", "description": "Xero tax type, e.g. INPUT"},
+                "contact_name": {"type": "string", "description": "Canonical Xero contact name"},
+                "note": {"type": "string"},
+                "rules": {"type": "string"},
+            },
+            required=["supplier", "account_code"],
+        ),
+        "annotations": {"readOnlyHint": False, "openWorldHint": False},
     },
     {
         "name": "xero_documents_create",
@@ -601,6 +726,83 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--limit", arguments.get("limit"))
         return command
 
+    if name == "xero_evidence_attachments":
+        action = arguments.get("action")
+        kind = arguments.get("kind")
+        object_id = arguments.get("object_id")
+        if not kind or not object_id:
+            raise XeroPluginMcpError("xero_evidence_attachments requires kind and object_id.")
+        if action == "list":
+            command = xero_cli_base(args) + ["evidence", "attachments", "list", str(kind), str(object_id)]
+        elif action == "download":
+            if not arguments.get("filename") or not arguments.get("out_path"):
+                raise XeroPluginMcpError("xero_evidence_attachments download requires filename and out_path.")
+            command = xero_cli_base(args) + [
+                "evidence",
+                "attachments",
+                "download",
+                str(kind),
+                str(object_id),
+                str(arguments["filename"]),
+                "--out",
+                str(arguments["out_path"]),
+            ]
+        else:
+            raise XeroPluginMcpError("xero_evidence_attachments action must be list or download.")
+        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
+        return command
+
+    if name == "xero_evidence_audit":
+        command = xero_cli_base(args) + ["evidence", "audit"]
+        kinds = arguments.get("kinds") or ["bill"]
+        command.extend(["--kinds", *[str(kind) for kind in kinds]])
+        add_optional(command, "--out", arguments.get("out_path"))
+        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
+        return command
+
+    if name == "xero_bills_inbox":
+        command = xero_cli_base(args) + ["bills", "inbox"]
+        statuses = arguments.get("status") or []
+        if statuses:
+            command.extend(["--status", *[str(status) for status in statuses]])
+        if arguments.get("with_attachments"):
+            command.append("--with-attachments")
+        add_optional(command, "--limit", arguments.get("limit"))
+        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
+        return command
+
+    if name == "xero_bills_review":
+        invoice_id = arguments.get("invoice_id")
+        if not invoice_id:
+            raise XeroPluginMcpError("xero_bills_review requires invoice_id.")
+        command = xero_cli_base(args) + ["bills", "review", "--invoice-id", str(invoice_id)]
+        add_optional(command, "--out-dir", arguments.get("out_dir"))
+        if arguments.get("no_download"):
+            command.append("--no-download")
+        add_optional(command, "--max-pages", arguments.get("max_pages"))
+        add_optional(command, "--rules", arguments.get("rules"))
+        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
+        return command
+
+    if name == "xero_bills_learn":
+        supplier = arguments.get("supplier")
+        account_code = arguments.get("account_code")
+        if not supplier or not account_code:
+            raise XeroPluginMcpError("xero_bills_learn requires supplier and account_code.")
+        command = xero_cli_base(args) + [
+            "bills",
+            "learn",
+            "--supplier",
+            str(supplier),
+            "--account-code",
+            str(account_code),
+        ]
+        add_optional(command, "--tax-type", arguments.get("tax_type"))
+        add_optional(command, "--contact-name", arguments.get("contact_name"))
+        add_optional(command, "--note", arguments.get("note"))
+        add_optional(command, "--rules", arguments.get("rules"))
+        return command
+
     if name == "xero_documents_create":
         payload = write_json_temp(temp, "document-create.json", arguments["payload"])
         command = xero_cli_base(args) + ["documents", "create", str(arguments["kind"]), "--payload", str(payload)]
@@ -936,6 +1138,10 @@ def command_self_test(args: argparse.Namespace) -> int:
         "xero_export_payments",
         "xero_export_aged_receivables",
         "xero_export_aged_payables",
+        "xero_evidence_attachments",
+        "xero_bills_inbox",
+        "xero_bills_review",
+        "xero_bills_learn",
     }
     missing = sorted(required.difference(tool_names))
     if missing:
