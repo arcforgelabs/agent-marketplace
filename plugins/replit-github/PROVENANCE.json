@@ -1,0 +1,22 @@
+{
+  "sourceRepo": "arcforgelabs/arc-forge-tools",
+  "sourceCommit": "55c87c896a719e597e7070c9303083bd0820cd45",
+  "sourcePath": "components/skills/replit-github",
+  "kind": "skill",
+  "version": "0.1.0",
+  "files": {
+    ".claude-plugin/plugin.json": "34360c0dd1e44c11834882cb3778861ee7b52f66488686fe44c4de83228c1efc",
+    ".codex-plugin/plugin.json": "b0bc7e7350de6b0b3545a70ea4ebf48ff8f44a91abd832cce393c945575e96ad",
+    ".cursor-plugin/plugin.json": "11a9c3a9f21e177939dd9df9868dd55a38d3827db3777ffb2eef696a3d2d32e4",
+    "README.md": "51c5ad630d8155a5659dd307c969d0a84ea3b3a56eccfb713c3f76cb61a8e2f0",
+    "package.json": "c0823a7bab2d2f22f975fb5cc3a5dc3435da70059bfdc88b439e32a84b9715ca",
+    "skills/replit-github/README.md": "377b209a5c8f0136c58d2edafaa7f51a0328a7962475837bd1f22d732165ad99",
+    "skills/replit-github/SKILL.md": "8431b58271a217d378187c993b1789c6b72ba1da3001aee4392157c5799bede9",
+    "skills/replit-github/assets/git-credential-github.sh": "1d8c4178aa47250d01f71fbee5c120f4f7ec1cdb3183622195f70f6fc2d13a75",
+    "skills/replit-github/assets/github-sync.sh": "5c5038e4bf9de519b45eb9bd6fe8399f084b154ad89a3d184d85e1c6fc89a98a",
+    "skills/replit-github/assets/replit-project-skill.SKILL.md": "86bc81a863cf45de862a469d34a19d817a50d5457afb25c5e6c60ed2c15086b4",
+    "skills/replit-github/references/repair.md": "caafe26e09420a7127253b57366efbbccb4df0596117459ad9dc38a518b14290",
+    "skills/replit-github/references/setup.md": "1de4e6ca751494351d62c26670d17b95e5f576c080b6411b26ce79e38f6da369",
+    "skills/replit-github/references/supervising.md": "78d259a00c609d6b8070b9e8a55d1e20bd171cd80b7e5edfcd28e4a750990bfd"
+  }
+}

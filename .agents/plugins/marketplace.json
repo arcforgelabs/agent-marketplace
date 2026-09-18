@@ -15,6 +15,18 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "replit-github",
+      "source": {
+        "source": "local",
+        "path": "./plugins/replit-github"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "Developer Tools"
     }
   ]
 }
