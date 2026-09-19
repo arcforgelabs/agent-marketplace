@@ -7,7 +7,7 @@ This is the OpenClaw product integration. Do not install a Field CLI, a workspac
 Package: `@arcforgelabs/openclaw-field`  
 Plugin ID: `arcforgelabs-field`  
 Skill: `field`  
-Tested hosts: OpenClaw 2026.9.3 and 2026.9.4.
+Requires OpenClaw 2026.9.3 or newer. No upper bound; newer Gateways stay loadable.
 
 ## Install
 
@@ -34,6 +34,8 @@ Installing the package does not grant Field access. The operator must complete `
 Until a ClawHub release is confirmed, install from the packaged GitHub payload at `plugins/field/openclaw` in `arcforgelabs/agent-marketplace`.
 
 ## Tools after login
+
+These names are Field MCP tools, not plugin-local HTTP tools. List tools return records (`{ items }`, `{ catalogs }`, `{ quotes }`), never top-level arrays. `field_markup_preview` requires `cost`, `basis` (`markup` or `margin`), and `percent`. `field_quote_get` defaults to a focused `quote` view; pass `view=full` only when evidence or activity is required.
 
 Read/calculation MCP tools: `field_quote_catalog_list`, `field_price_item_list`, `field_price_item_get`, `field_pricing_review`, `field_markup_preview`, `field_catalog_structure`, `field_quote_list`, `field_quote_get`, `field_quote_validate`.
 

@@ -2,7 +2,7 @@
   "id": "arcforgelabs-fergus",
   "name": "Fergus by Arc Forge",
   "description": "Unofficial Fergus trades job-management tools: jobs, quotes, calendar, customers, stock, and more. Not affiliated with Fergus.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "configSchema": {
     "type": "object",
     "required": [

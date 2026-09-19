@@ -29,4 +29,15 @@ describe("gohighlevel plugin", () => {
     const manifest = readFileSync(resolve(import.meta.dirname, "../openclaw.plugin.json"), "utf8");
     expect(manifest).toContain('"const": "store"');
   });
+
+  it("declares an OpenClaw floor without an upper bound", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, "../package.json"), "utf8"));
+    expect(pkg.peerDependencies.openclaw).toBe(">=2026.9.3");
+    expect(pkg.openclaw.compat.pluginApi).toBe(">=2026.9.3");
+    expect(pkg.openclaw.compat.minGatewayVersion).toBe("2026.9.3");
+    expect(pkg.peerDependencies.openclaw).not.toMatch("<=");
+    expect(pkg.openclaw.compat.pluginApi).not.toMatch("<=");
+  });
 });

@@ -8,7 +8,7 @@ Unofficial HighLevel integration for OpenClaw. Independently developed by Arc Fo
 - Native plugin ID: `arcforgelabs-gohighlevel`
 - Skill: `gohighlevel`; tools: `ghl_*`
 - One sub-account PIT; full supported read/write operations. No agency provisioning.
-- Tested hosts: OpenClaw 2026.9.3 and 2026.9.4. Other host versions are not yet verified.
+- Requires OpenClaw 2026.9.3 or newer. No upper bound; newer Gateways stay loadable.
 
 ## Install
 
@@ -18,19 +18,23 @@ Until a ClawHub release is confirmed, install the packaged GitHub release artifa
 openclaw plugins install /absolute/path/to/package
 ```
 
-Review and accept the declared capabilities using the normal installer. Configure
-`plugins.entries.arcforgelabs-gohighlevel.config` with your location ID and a
-host-managed SecretRef for `privateIntegrationToken`. Example source configuration:
+`openclaw plugins install` copies the package. It does **not** accept a SecretRef
+object or token. Noninteractive GitHub-path installs require `--force` and
+`--accept-capabilities`. Set location ID as a string, then the PIT with SecretRef
+builder mode:
 
-```json
-{
-  "locationId": "YOUR_LOCATION_ID",
-  "privateIntegrationToken": {"source":"store","provider":"default","id":"GHL_TOKEN"}
-}
+```sh
+export OPENCLAW_CONFIG_PATH=/path/to/openclaw.json5
+openclaw plugins install /absolute/path/to/package \
+  --force --accept-capabilities --acknowledge-install-policy-warning
+openclaw config set plugins.entries.arcforgelabs-gohighlevel.config.locationId YOUR_LOCATION_ID
+openclaw config set plugins.entries.arcforgelabs-gohighlevel.config.privateIntegrationToken \
+  --ref-source store --ref-provider default --ref-id GHL_TOKEN
+openclaw plugins enable arcforgelabs-gohighlevel --accept-capabilities
 ```
 
-`source` must accept `env`, `file`, `exec`, and `store`. One-shot Gateway installs
-use the protected `store` acceptor; omitting `store` is a release blocker.
+Collect `GHL_TOKEN` with the Gateway protected acceptor (`source: store`) before
+`config set`. `env`/`file`/`exec` remain valid. Omitting `store` is a release blocker.
 Supply that id through the Gateway's supported protected setup, not chat,
 source control, command arguments or a public profile. An unresolved reference
 fails closed. `timezone` is optional with no regional default; use explicit UTC

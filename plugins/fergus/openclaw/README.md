@@ -8,7 +8,7 @@ Unofficial Fergus integration for OpenClaw. Independently developed by Arc Forge
 - Native plugin ID: `arcforgelabs-fergus`
 - Skill: `fergus`; tools: `fergus_*`
 - Company Personal Access Token (PAT); official REST at `https://api.fergus.com`
-- Tested hosts: OpenClaw 2026.9.3 and 2026.9.4. Other host versions are not yet verified.
+- Requires OpenClaw 2026.9.3 or newer. No upper bound; newer Gateways stay loadable.
 
 ## Install
 
