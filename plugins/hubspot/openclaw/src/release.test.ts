@@ -12,4 +12,12 @@ describe("release payload policy", () => {
     expect(manifest).toContain('"const": "store"');
     expect(manifest).toContain('"const": "env"');
   });
+  it("declares an OpenClaw floor without an upper bound", () => {
+    const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, "../package.json"), "utf8"));
+    expect(pkg.peerDependencies.openclaw).toBe(">=2026.9.3");
+    expect(pkg.openclaw.compat.pluginApi).toBe(">=2026.9.3");
+    expect(pkg.openclaw.compat.minGatewayVersion).toBe("2026.9.3");
+    expect(pkg.peerDependencies.openclaw).not.toMatch("<=");
+    expect(pkg.openclaw.compat.pluginApi).not.toMatch("<=");
+  });
 });

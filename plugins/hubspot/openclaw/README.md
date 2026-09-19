@@ -2,14 +2,23 @@
 
 Unofficial HubSpot integration maintained by Arc Forge Labs; not affiliated with or endorsed by HubSpot, Inc.
 
-Install this directory with `openclaw plugins install /absolute/path/to/package` and configure
-`plugins.entries.arcforgelabs-hubspot.config` with a host-managed SecretRef:
+`openclaw plugins install` copies the package. It does **not** accept a SecretRef
+object, JSON token, or `--config` flag. Noninteractive installs from this GitHub
+path require `--force` and `--accept-capabilities`. Wire the token afterwards
+with SecretRef builder mode — never as a positional string.
 
-```json
-{"accessToken":{"source":"store","provider":"default","id":"HUBSPOT_TOKEN"}}
+```sh
+export OPENCLAW_CONFIG_PATH=/path/to/openclaw.json5
+openclaw plugins install /absolute/path/to/package \
+  --force --accept-capabilities --acknowledge-install-policy-warning
+openclaw config set plugins.entries.arcforgelabs-hubspot.config.accessToken \
+  --ref-source store --ref-provider default --ref-id HUBSPOT_TOKEN
+openclaw plugins enable arcforgelabs-hubspot --accept-capabilities
 ```
 
-`source` must accept `env`, `file`, `exec`, and `store`. One-shot Gateway installs use the protected `store` acceptor; omitting `store` rejects that credential.
+Collect `HUBSPOT_TOKEN` with the Gateway protected acceptor (`source: store`,
+host `api.hubapi.com`) before `config set`. `env`/`file`/`exec` remain valid
+schema sources. A schema that omits `store` is a release blocker.
 
 The optional `portalId` pins operator context and `timezone` is validated when supplied; no regional
 timezone is assumed. The CLI is backed by the same implementation:
@@ -24,7 +33,7 @@ Never pass credentials as arguments. Only the blank `ACCOUNT.template.md` ships;
 profiles belong in a private authorised workspace.
 
 The tools perform live writes when invoked. Reads retry bounded 429/5xx responses; writes do not auto-retry.
-No customer write is used as a release test. Tested against OpenClaw 2026.9.3–2026.9.4.
+No customer write is used as a release test. Requires OpenClaw 2026.9.3 or newer; no upper bound.
 
 ## Development
 

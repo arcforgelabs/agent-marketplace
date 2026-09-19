@@ -2,7 +2,7 @@
   "id": "arcforgelabs-field",
   "name": "Field by Arc Forge",
   "description": "Connect OpenClaw to a customer's Field instance with OAuth. Quote and catalog tools come from Field MCP after login.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "configSchema": {
     "type": "object",
     "required": [

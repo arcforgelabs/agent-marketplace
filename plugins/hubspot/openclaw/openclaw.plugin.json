@@ -2,7 +2,7 @@
   "id": "arcforgelabs-hubspot",
   "name": "HubSpot by Arc Forge",
   "description": "Unofficial HubSpot CRM integration maintained by Arc Forge Labs; not affiliated with or endorsed by HubSpot, Inc.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "configSchema": {
     "type": "object",
     "required": [

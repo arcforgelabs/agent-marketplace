@@ -24,4 +24,13 @@ describe("field plugin", () => {
     expect(manifest.mcpServers.field.transport).toBe("streamable-http");
     expect(manifest.mcpServers.field.toolFilter.include).toEqual(["field_*"]);
   });
+
+  it("declares an OpenClaw floor without an upper bound", () => {
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    expect(pkg.peerDependencies.openclaw).toBe(">=2026.9.3");
+    expect(pkg.openclaw.compat.pluginApi).toBe(">=2026.9.3");
+    expect(pkg.openclaw.compat.minGatewayVersion).toBe("2026.9.3");
+    expect(pkg.peerDependencies.openclaw).not.toMatch("<=");
+    expect(pkg.openclaw.compat.pluginApi).not.toMatch("<=");
+  });
 });
