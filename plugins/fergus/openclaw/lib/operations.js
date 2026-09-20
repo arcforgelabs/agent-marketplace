@@ -1,7 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
 import { capLimit, compact } from "./config.js";
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_UPLOAD_BASE64_CHARS = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4;
 const WRITABLE_FILE_ENTITIES = new Set(["customer", "job", "site", "enquiry", "job_phase"]);
 const FILE_ENTITIES = new Set(["customer", "job", "site", "enquiry", "job_phase", "form", "certificate"]);
 const NOTE_ENTITIES = new Set(["job", "customer", "customer_invoice", "quote", "site", "task", "enquiry", "works_order"]);
@@ -479,12 +478,15 @@ export async function tasks(client, _config, params) {
             throw new Error(`Unsupported tasks action: ${action}`);
     }
 }
-function assertLocalFilePath(filePath) {
-    if (filePath.includes("\0") ||
-        filePath.includes("://") ||
-        /(^|[/\\])\.\.([/\\]|$)/.test(filePath)) {
-        throw new Error("Invalid filePath.");
+function decodeUpload(fileBase64) {
+    if (fileBase64.length > MAX_UPLOAD_BASE64_CHARS) {
+        throw new Error("Attachment exceeds the 20MB Fergus limit.");
     }
+    if (fileBase64.length % 4 !== 0 ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(fileBase64)) {
+        throw new Error("fileBase64 must be valid padded base64 without whitespace.");
+    }
+    return Buffer.from(fileBase64, "base64");
 }
 export async function files(client, _config, params) {
     const action = requiredAction(params, "fergus_files");
@@ -516,26 +518,17 @@ export async function files(client, _config, params) {
             if (fileName.includes("..") || fileName.includes("/") || fileName.includes("\\")) {
                 throw new Error("Invalid fileName.");
             }
-            let bytes;
-            const filePath = asString(params.filePath);
             const fileBase64 = asString(params.fileBase64);
-            if (filePath) {
-                assertLocalFilePath(filePath);
-                bytes = await readFile(filePath);
-            }
-            else if (fileBase64) {
-                bytes = Buffer.from(fileBase64, "base64");
-            }
-            else {
-                throw new Error("filePath or fileBase64 is required for upload.");
-            }
+            if (!fileBase64)
+                throw new Error("fileBase64 is required for upload.");
+            const bytes = decodeUpload(fileBase64);
             if (bytes.byteLength > MAX_UPLOAD_BYTES)
                 throw new Error("Attachment exceeds the 20MB Fergus limit.");
             const form = new FormData();
             const mime = asString(params.mimeType) ?? "application/octet-stream";
             const copy = new ArrayBuffer(bytes.byteLength);
             new Uint8Array(copy).set(bytes);
-            form.append("file", new Blob([copy], { type: mime }), filePath ? basename(filePath) : fileName);
+            form.append("file", new Blob([copy], { type: mime }), fileName);
             form.append("entityType", entityType);
             form.append("entityId", entityId);
             return client.request("POST", "/attachments", { form });

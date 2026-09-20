@@ -33,6 +33,10 @@ Optional: `companyId` (guid from `GET /company`) and `maxRequestsPerMinute`
 
 Prove with `fergus_status`. Do not create live jobs, quotes, or files as a smoke test.
 
+Attachment uploads accept `fileBase64`, `fileName`, and optional `mimeType`.
+The plugin deliberately does not accept host file paths; callers must supply
+the bytes they intend to upload.
+
 ## Tool availability
 
 Fergus tools opt into OpenClaw's `coding` and `full` tool profiles. Explicit

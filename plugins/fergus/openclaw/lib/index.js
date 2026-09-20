@@ -328,13 +328,12 @@ export default defineToolPlugin({
         tool({
             name: "fergus_files",
             label: "Fergus Files",
-            description: "Attachments: list/upload/download/delete. form and certificate are list+download only. Download returns signed URL metadata and must not be cached.",
+            description: "Attachments: list/upload/download/delete. Upload accepts base64 content and never reads host file paths. form and certificate are list+download only. Download returns signed URL metadata and must not be cached.",
             parameters: Type.Object({
                 action: actionSchema(["list", "upload", "download", "delete"], "File operation to run. Writes require an explicit action."),
                 attachmentId: Type.Optional(Type.Union([Type.String(), Type.Number()])),
                 entityType: Type.Optional(Type.String()),
                 entityId: Type.Optional(Type.Union([Type.String(), Type.Number()])),
-                filePath: Type.Optional(Type.String()),
                 fileBase64: Type.Optional(Type.String()),
                 fileName: Type.Optional(Type.String()),
                 mimeType: Type.Optional(Type.String()),
