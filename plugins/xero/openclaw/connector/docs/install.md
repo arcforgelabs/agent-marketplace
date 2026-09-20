@@ -1,5 +1,17 @@
 # Xero Plugin Install
 
+## Shared callback (public package 0.3+)
+
+The package includes the public client ID. Approved installations run
+`xero auth login --print-url`, receiving a short connect.arcforge.au link.
+An operator provisions `~/.config/arc-forge-tools/xero/connect-credential`
+(mode 0600). This private installation credential is not a Xero client secret.
+No inbound callback port, tunnel, or customer-specific URI is needed.
+Link lifetime: ten minutes; a new attempt replaces the old link.
+Verify token exchange and `xero smoke organisation` before reporting success.
+Explicit `--redirect-uri` retains the direct callback mode documented below.
+
+
 This connector is designed for local single-user operation. Users need their own
 Xero account and access to a Xero organisation; they should not need their own
 Xero developer app credentials.

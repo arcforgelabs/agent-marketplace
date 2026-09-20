@@ -36,6 +36,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import xero_connect
 import xero_ap_policy
 import xero_bill_inbox
 import xero_finance_rules
@@ -617,7 +618,7 @@ def build_app_config_report(args: argparse.Namespace) -> dict[str, Any]:
             "app_type": "Mobile/Desktop or PKCE-capable public client",
             "client_id_env": "ARC_FORGE_XERO_CLIENT_ID",
             "client_id_configured": bool(client_id),
-            "client_id": redact_value(client_id) if client_id else None,
+            "client_id": client_id if client_id else None,
             "client_id_source": client_id_source,
             "client_secret_required": False,
             "redirect_uris": redirect_uris,
@@ -630,6 +631,13 @@ def build_app_config_report(args: argparse.Namespace) -> dict[str, Any]:
             "path": "/callback",
             "url": callback,
             "bind": CALLBACK_BIND_HOST,
+        },
+        "shared_callback": {
+            "origin": xero_connect.ORIGIN,
+            "redirect_uri": xero_connect.REDIRECT_URI,
+            "active": public_callback == xero_connect.REDIRECT_URI,
+            "installation_credential_present": xero_connect.credential_path().is_file(),
+            "public_client_id_is_secret": False,
         },
         "gateway_callback": {
             "path": "/xero/oauth/callback",
@@ -644,7 +652,7 @@ def build_app_config_report(args: argparse.Namespace) -> dict[str, Any]:
             "opens_user_browser": True,
             "user_completes_login_mfa_consent": True,
             "local_cli_captures_callback_only": True,
-            "vps_uses_gateway_https_callback": not redirect_uri_is_loopback(public_callback),
+            "vps_uses_gateway_https_callback": not redirect_uri_is_loopback(public_callback) and public_callback != xero_connect.REDIRECT_URI,
         },
         "environment": {
             "required_for_login": [] if client_id else ["ARC_FORGE_XERO_CLIENT_ID or packaged oauth-app.json"],
@@ -1529,38 +1537,47 @@ def command_auth_login(args: argparse.Namespace) -> int:
     state = create_state()
     code_verifier = create_code_verifier()
     code_challenge = create_code_challenge(code_verifier)
-    query = urllib.parse.urlencode(
-        {
-            "response_type": "code",
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": scope,
-            "state": state,
-            "code_challenge": code_challenge,
-            "code_challenge_method": "S256",
-        }
-    )
-    authorize_url = f"{AUTHORIZE_URL}?{query}"
-    write_oauth_expect(state)
-
-    print("Opening Xero authorization in your browser.")
-    print(f"Redirect URI: {redirect_uri}")
-    if not listen_loopback:
-        print("Waiting for the Gateway /xero/oauth/callback route (no SSH tunnel).")
-    if args.print_url:
-        print(authorize_url)
+    if redirect_uri == xero_connect.REDIRECT_URI:
+        try:
+            state, params = xero_connect.login(
+                client_id=client_id, challenge=code_challenge, scope=scope,
+                timeout=args.timeout, print_url=args.print_url, open_browser=webbrowser.open,
+            )
+        except xero_connect.ConnectError as exc:
+            raise XeroCliError(str(exc)) from None
     else:
-        webbrowser.open(authorize_url)
-
-    try:
-        params = wait_for_callback(
-            port,
-            args.timeout,
-            state=state,
-            listen=listen_loopback,
+        query = urllib.parse.urlencode(
+            {
+                "response_type": "code",
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "scope": scope,
+                "state": state,
+                "code_challenge": code_challenge,
+                "code_challenge_method": "S256",
+            }
         )
-    finally:
-        consume_oauth_pending(state)
+        authorize_url = f"{AUTHORIZE_URL}?{query}"
+        write_oauth_expect(state)
+
+        print("Opening Xero authorization in your browser.")
+        print(f"Redirect URI: {redirect_uri}")
+        if not listen_loopback:
+            print("Waiting for the Gateway /xero/oauth/callback route (no SSH tunnel).")
+        if args.print_url:
+            print(authorize_url)
+        else:
+            webbrowser.open(authorize_url)
+
+        try:
+            params = wait_for_callback(
+                port,
+                args.timeout,
+                state=state,
+                listen=listen_loopback,
+            )
+        finally:
+            consume_oauth_pending(state)
     if params.get("state") != state:
         raise XeroCliError("OAuth state mismatch. Aborting.")
     if params.get("error"):
@@ -6290,12 +6307,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--redirect-uri",
         help=(
             "Exact OAuth redirect URI registered on the Xero app. "
-            "Use https://<gateway-public-origin>/xero/oauth/callback on a VPS. "
+            "Default bundled app uses https://connect.arcforge.au/xero/callback. "
+            "Explicit local/Gateway callbacks retain direct mode. "
             "Defaults to ARC_FORGE_XERO_REDIRECT_URI, then the first https URI in oauth-app.json, "
             "then http://localhost:<port>/callback."
         ),
     )
-    login.add_argument("--timeout", type=int, default=300, help="Callback timeout in seconds")
+    login.add_argument("--timeout", type=int, default=600, help="Callback timeout in seconds")
     login.add_argument("--print-url", action="store_true", help="Print authorize URL instead of opening browser")
     login.set_defaults(func=command_auth_login)
 

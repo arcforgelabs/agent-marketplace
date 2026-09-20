@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "provider": "xero",
+  "app_owner": "Arc Forge",
+  "client_id": "36039170F54F49879F08C5F0AFBD3C7D",
+  "redirect_uris": [
+    "https://connect.arcforge.au/xero/callback",
+    "http://localhost:8765/callback"
+  ],
+  "client_secret_required": false
+}

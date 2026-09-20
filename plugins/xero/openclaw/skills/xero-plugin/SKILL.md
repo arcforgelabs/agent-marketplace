@@ -11,15 +11,23 @@ Confirm the active tenant before interpreting figures or preparing a write.
 
 ## Authentication
 
-This is a public OAuth PKCE client. Do not ask for or invent a client secret or
-static token field. Do not use SSH tunnels or SecretRef for the auth code.
+This is a public OAuth PKCE client. The public client ID is bundled and is NOT
+a secret: never request it through a secret-input tool or redact it in a login
+request. Never ask for a Xero client secret or copy auth codes into SecretRef.
 
-- Local: `xero auth login` (redirect `http://localhost:8765/callback`).
-- VPS/OpenClaw: register `https://<gateway-public-origin>/xero/oauth/callback` on
-  the Xero app, bypass Cloudflare Access for that exact path, then
-  `xero auth login --redirect-uri https://<gateway-public-origin>/xero/oauth/callback`.
-  The plugin HTTP route captures the callback; the operator only completes Xero
-  login/MFA/consent in a browser.
+- First check `xero auth status`; do not replace a working grant unnecessarily.
+- Approved installation: `xero auth login --print-url` prints a short
+  `https://connect.arcforge.au/xero/start/...` link. Deliver that link exactly,
+  preferably as **Connect Xero**. Never reconstruct an authorize URL.
+- Keep that process alive for the login. Link lifetime is ten minutes, and a
+  new attempt replaces the old one. Do not create multiple concurrent waiters.
+- Missing approval means an operator must provision the private installation
+  credential, not a Xero app/client secret. See the package README.
+- The user completes Xero login/MFA/consent. The browser confirms receipt only;
+  verify CLI success and `xero smoke organisation` before declaring connected.
+- Existing direct mode remains explicit:
+  `xero auth login --redirect-uri <already-registered-callback>`.
+  Do not alter working direct grants while the shared service is being enabled.
 
 Then `xero tenants list --refresh` and `xero tenants use <tenant-id>`.
 

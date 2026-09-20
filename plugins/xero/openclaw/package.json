@@ -1,6 +1,6 @@
 {
   "name": "@arcforgelabs/openclaw-xero",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "test": "node --test test/native-plugin.test.js",
@@ -40,7 +40,8 @@
   },
   "files": [
     "connector",
-    "lib",
+    "core.js",
+    "index.js",
     "skills",
     "scripts",
     "openclaw.plugin.json",
