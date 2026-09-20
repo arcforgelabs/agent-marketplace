@@ -33,6 +33,28 @@ Optional: `companyId` (guid from `GET /company`) and `maxRequestsPerMinute`
 
 Prove with `fergus_status`. Do not create live jobs, quotes, or files as a smoke test.
 
+## Tool availability
+
+Fergus tools opt into OpenClaw's `coding` and `full` tool profiles. Explicit
+operator allowlists and deny rules still win. If an older package or a narrower
+profile hides the tools, grant the plugin once instead of copying every current
+tool name:
+
+```json5
+{
+  tools: {
+    profile: "coding",
+    alsoAllow: ["arcforgelabs-fergus"],
+  },
+}
+```
+
+For a single agent, put the same `alsoAllow` entry under that agent's `tools`
+block. Sandboxed sessions have an independent gate; add
+`arcforgelabs-fergus` to `tools.sandbox.tools.alsoAllow` when sandboxing is
+enabled. Start a fresh session and prove availability with the read-only
+`fergus_status` tool after changing policy.
+
 ## Rate limit
 
 Fergus allows 100 requests per minute per company, shared across tokens and

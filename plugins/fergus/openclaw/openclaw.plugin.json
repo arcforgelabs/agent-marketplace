@@ -2,7 +2,7 @@
   "id": "arcforgelabs-fergus",
   "name": "Fergus by Arc Forge",
   "description": "Unofficial Fergus trades job-management tools: jobs, quotes, calendar, customers, stock, and more. Not affiliated with Fergus.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "configSchema": {
     "type": "object",
     "required": [
@@ -75,27 +75,6 @@
   "activation": {
     "onStartup": true
   },
-  "contracts": {
-    "tools": [
-      "fergus_status",
-      "fergus_jobs",
-      "fergus_quotes",
-      "fergus_calendar",
-      "fergus_customers",
-      "fergus_sites",
-      "fergus_contacts",
-      "fergus_users",
-      "fergus_notes",
-      "fergus_tasks",
-      "fergus_files",
-      "fergus_enquiries",
-      "fergus_invoices",
-      "fergus_time",
-      "fergus_stock",
-      "fergus_pricebooks",
-      "fergus_favourites"
-    ]
-  },
   "skills": [
     "./skills"
   ],
@@ -127,6 +106,165 @@
     "timezone": {
       "label": "Timezone",
       "help": "IANA timezone for this company. Optional; no regional default. Use timestamps with explicit UTC offsets."
+    }
+  },
+  "contracts": {
+    "tools": [
+      "fergus_status",
+      "fergus_jobs",
+      "fergus_quotes",
+      "fergus_calendar",
+      "fergus_customers",
+      "fergus_sites",
+      "fergus_contacts",
+      "fergus_users",
+      "fergus_notes",
+      "fergus_tasks",
+      "fergus_files",
+      "fergus_enquiries",
+      "fergus_invoices",
+      "fergus_time",
+      "fergus_stock",
+      "fergus_pricebooks",
+      "fergus_favourites"
+    ]
+  },
+  "toolMetadata": {
+    "fergus_status": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": true,
+      "sideEffecting": false
+    },
+    "fergus_jobs": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_quotes": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_calendar": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_customers": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_sites": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_contacts": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_users": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_notes": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_tasks": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_files": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_enquiries": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_invoices": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_time": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_stock": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_pricebooks": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "fergus_favourites": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
     }
   }
 }

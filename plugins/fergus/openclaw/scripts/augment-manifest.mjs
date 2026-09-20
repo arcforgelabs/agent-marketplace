@@ -6,6 +6,18 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(root, "openclaw.plugin.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
+const tools = manifest.contracts?.tools ?? [];
+manifest.toolMetadata = Object.fromEntries(
+  tools.map((name) => [
+    name,
+    {
+      profiles: ["coding", "full"],
+      replaySafe: name === "fergus_status",
+      sideEffecting: name !== "fergus_status",
+    },
+  ]),
+);
+
 manifest.skills = ["./skills"];
 manifest.configContracts = {
   secretInputs: {
