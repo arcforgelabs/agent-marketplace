@@ -38,6 +38,18 @@ describe("fergus plugin", () => {
     expect(manifest).not.toContain("locationId");
   });
 
+  it("exposes every tool through intended profiles with explicit safety metadata", () => {
+    const manifest = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, "../openclaw.plugin.json"), "utf8"),
+    );
+    expect(Object.keys(manifest.toolMetadata)).toEqual(expectedTools);
+    for (const name of expectedTools) {
+      expect(manifest.toolMetadata[name].profiles).toEqual(["coding", "full"]);
+      expect(manifest.toolMetadata[name].replaySafe).toBe(name === "fergus_status");
+      expect(manifest.toolMetadata[name].sideEffecting).toBe(name !== "fergus_status");
+    }
+  });
+
   it("declares an OpenClaw floor without an upper bound", () => {
     const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, "../package.json"), "utf8"));
     expect(pkg.peerDependencies.openclaw).toBe(">=2026.9.3");
