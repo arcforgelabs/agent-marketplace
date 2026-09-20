@@ -61,7 +61,7 @@ Mutating calls need an explicit `action`. There is no default write.
 | `fergus_users` | yes | list/me/get/update |
 | `fergus_notes` | yes | entities: job, customer, customer_invoice, quote, site, task, enquiry, works_order |
 | `fergus_tasks` | yes | including complete/reopen |
-| `fergus_files` | yes* | upload/delete on customer/job/site/enquiry/job_phase. `form` and `certificate` are list+download only. Max 20MB. Download returns a short-lived URL; do not cache. |
+| `fergus_files` | yes* | upload/delete on customer/job/site/enquiry/job_phase. Upload accepts base64 content, never host file paths. `form` and `certificate` are list+download only. Max 20MB. Download returns a short-lived URL; do not cache. |
 | `fergus_enquiries` | yes | create/list/get |
 | `fergus_invoices` | no | GET `/customerInvoices` only |
 | `fergus_time` | no | GET `/timeEntries` only |
