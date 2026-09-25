@@ -1,0 +1,190 @@
+{
+  "id": "arcforgelabs-deputy",
+  "name": "Deputy by Arc Forge",
+  "description": "Unofficial Deputy payroll and workforce tools: employees, timesheets, leave, rosters, locations, and pay reads. Not affiliated with Deputy.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "required": [
+      "apiToken",
+      "installHost"
+    ],
+    "properties": {
+      "apiToken": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "provider",
+              "id"
+            ],
+            "properties": {
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "env"
+                  },
+                  {
+                    "type": "string",
+                    "const": "file"
+                  },
+                  {
+                    "type": "string",
+                    "const": "exec"
+                  },
+                  {
+                    "type": "string",
+                    "const": "store"
+                  }
+                ]
+              },
+              "provider": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ],
+        "description": "Deputy permanent API token. Prefer a host-managed SecretRef including source store."
+      },
+      "installHost": {
+        "type": "string",
+        "description": "Tenant host only, for example acme.au.deputy.com. Rejects once.deputy.com, schemes, ports, and paths."
+      },
+      "maxRequestsPerMinute": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 120,
+        "description": "Local governor cap. Default 60, hard-capped at 120. Deputy does not publish a numeric rate limit."
+      },
+      "timezone": {
+        "type": "string",
+        "description": "Optional IANA timezone; no regional default."
+      }
+    },
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "skills": [
+    "./skills"
+  ],
+  "configContracts": {
+    "secretInputs": {
+      "paths": [
+        {
+          "path": "apiToken",
+          "ownerKind": "capability",
+          "expected": "string"
+        }
+      ]
+    }
+  },
+  "uiHints": {
+    "apiToken": {
+      "label": "Deputy API token",
+      "sensitive": true,
+      "help": "Permanent token from the install's OAuth clients page. Store it as a SecretRef; never paste it into chat, git, or shell history."
+    },
+    "installHost": {
+      "label": "Install host",
+      "help": "Tenant host only, for example acme.au.deputy.com. Do not include https://, a path, a port, or once.deputy.com."
+    },
+    "maxRequestsPerMinute": {
+      "label": "Max requests per minute",
+      "help": "Local governor cap. Default 60, hard-capped at 120. Deputy does not publish a numeric vendor rate limit; retry-after and x-ratelimit-* are honoured when present."
+    },
+    "timezone": {
+      "label": "Timezone",
+      "help": "IANA timezone for this install. Optional; no regional default. Use timestamps with explicit UTC offsets."
+    }
+  },
+  "contracts": {
+    "tools": [
+      "deputy_status",
+      "deputy_employees",
+      "deputy_timesheets",
+      "deputy_leave",
+      "deputy_rosters",
+      "deputy_locations",
+      "deputy_areas",
+      "deputy_pay"
+    ]
+  },
+  "toolMetadata": {
+    "deputy_status": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": true,
+      "sideEffecting": false
+    },
+    "deputy_employees": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "deputy_timesheets": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "deputy_leave": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "deputy_rosters": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "deputy_locations": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "deputy_areas": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "deputy_pay": {
+      "profiles": [
+        "coding",
+        "full"
+      ],
+      "replaySafe": false,
+      "sideEffecting": true
+    }
+  }
+}
