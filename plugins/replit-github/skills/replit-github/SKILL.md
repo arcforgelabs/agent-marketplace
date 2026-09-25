@@ -37,9 +37,11 @@ Consequences:
    *Contents: read/write* + *Pull requests: read/write*. A human creates it;
    agents never handle token values.
 3. In the repo: `scripts/github-sync.sh`, `scripts/git-credential-github.sh`,
-   `.agents/skills/github-sync/SKILL.md` (copy from `assets/`, replace
-   `__OWNER__/__REPO__`). Plus a short "GitHub" section in `replit.md`.
-4. Rule: nothing commits to `main` directly on either side. Branch → PR →
+   `.agents/skills/github-sync/SKILL.md` (copy from `assets/` unchanged; they
+   detect the repo and default branch themselves). Plus a short "GitHub"
+   section in `replit.md`. The same `SKILL.md` also works as an account-wide
+   Replit skill (Settings → Customization → Skills).
+4. Rule: nothing commits to the default branch (`main`/`master`) directly on either side. Branch → PR →
    merge on GitHub → `scripts/github-sync.sh pull`. Off-Replit work follows
    the same path, so no second sync process is needed.
 

@@ -22,17 +22,17 @@ Do this before the Agent makes its first commit if at all possible. Budget
    `BRANCH_ALREADY_EXISTS`: switch the workspace to a new branch name (Agent:
    `git checkout -b replit-workspace`), push that, merge on GitHub, then pull.
 4. Set upstream so Pull/Push appear (Agent shell, no auth needed):
-   `git branch --set-upstream-to=<remote>/main main` where `<remote>` is the
+   `git branch --set-upstream-to=<remote>/<default> <default>` (`main` or `master`) where `<remote>` is the
    `subrepl-*` remote pointing at GitHub (`git remote -v | grep github.com`).
-5. Add the three files from this skill's `assets/` to the repo, replacing
-   `__OWNER__/__REPO__`:
+5. Add the three files from this skill's `assets/` to the repo unchanged
+   (they detect the repo and default branch):
    - `scripts/github-sync.sh`
    - `scripts/git-credential-github.sh`
    - `.agents/skills/github-sync/SKILL.md` (from `replit-project-skill.SKILL.md`)
    Add a "GitHub" section to `replit.md` pointing at them. Commit and push
    (via PR, per the rule).
-6. **Token** (human only). GitHub → Settings → Developer settings → Fine-grained
-   tokens → Generate:
+6. **Token** (human only). Open https://github.com/settings/personal-access-tokens/new
+   (GitHub → Settings → Developer settings → Fine-grained tokens → Generate):
    - Resource owner: the org (e.g. `arcforgelabs`)
    - Repository access: *Only select repositories* → the repo
    - Permissions: *Contents* read/write, *Pull requests* read/write

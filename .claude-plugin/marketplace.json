@@ -25,7 +25,7 @@
       "name": "replit-github",
       "source": "replit-github",
       "description": "Wire a Replit project to a GitHub repo so the Replit Agent can push, open PRs, and pull main; diagnose or repair Replit/GitHub history drift.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "Arc Forge Labs"
       },
