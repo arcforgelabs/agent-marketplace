@@ -46,7 +46,7 @@ ensure_helper() {
 have_token() { [ -n "${GITHUB_TOKEN:-}" ]; }
 
 require_token() {
-  have_token || die "GITHUB_TOKEN is not set. Add it as a Replit Secret (fine-grained PAT: Contents RW, Pull requests RW on $OWNER_REPO), or run: $0 handoff"
+  have_token || die "GITHUB_TOKEN is not set. Create a fine-grained PAT at https://github.com/settings/personal-access-tokens/new (resource owner: ${OWNER_REPO%%/*}, repo: ${OWNER_REPO#*/}, Contents RW, Pull requests RW), add it as the Replit Secret GITHUB_TOKEN, or run: $0 handoff"
 }
 
 cmd_status() {
@@ -62,7 +62,7 @@ cmd_status() {
       git -C "$ROOT" fetch -q "$r" "$MAIN"
       echo "vs main:  $(git -C "$ROOT" rev-list --left-right --count "HEAD...$r/$MAIN" | awk '{print "ahead " $1 ", behind " $2}')"
     else
-      echo "auth:     GITHUB_TOKEN is set but GitHub rejected it"
+      echo "auth:     GITHUB_TOKEN is set but GitHub rejected it (expired, pending org approval, wrong resource owner, or repo not selected)"
     fi
   else
     echo "auth:     no GITHUB_TOKEN — push/pull must go through the Replit Git pane (see: $0 handoff)"
@@ -120,7 +120,11 @@ browser) opens the Replit Git tool on this project, confirms "Pass GitHub
 credentials" if prompted, and clicks "Push branch as '$r/$b'".
 Then open the PR at https://github.com/$OWNER_REPO/compare/$b?expand=1
 After it merges: switch to $MAIN in the Git tool and click Pull (fast-forward).
-Alternatively, add a GITHUB_TOKEN secret and re-run: scripts/github-sync.sh open-pr "<title>"
+Permanent fix: create a fine-grained PAT at
+https://github.com/settings/personal-access-tokens/new (resource owner
+${OWNER_REPO%%/*}, only repo ${OWNER_REPO#*/}, Contents + Pull requests read/write),
+save it as the Replit Secret GITHUB_TOKEN, then re-run:
+scripts/github-sync.sh open-pr "<title>"
 EOF
 }
 

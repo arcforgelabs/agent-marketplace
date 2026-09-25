@@ -50,9 +50,40 @@ Run `scripts/github-sync.sh status`.
    reply. It contains the branch name, HEAD sha, and the exact clicks a human
    or supervising agent needs in the Replit Git tool
    (Push branch as `<remote>/<branch>` → open PR → after merge, Pull on main).
-3. Tell the user the permanent fix: add a `GITHUB_TOKEN` Replit Secret
-   (fine-grained PAT for __OWNER__/__REPO__ with Contents: read/write and
-   Pull requests: read/write). Then Path A works without any handoff.
+3. Tell the user the permanent fix is a `GITHUB_TOKEN` secret and walk them
+   through **Setting up GITHUB_TOKEN** below. Then Path A works without any
+   handoff.
+
+## Setting up GITHUB_TOKEN (walk the human through this)
+
+Use this whenever `status` says `no GITHUB_TOKEN` or `GitHub rejected it`, or
+the user asks how to give you push access. The human does every step; you never
+see, print, or store the token value.
+
+1. Open **https://github.com/settings/personal-access-tokens/new**
+   (GitHub → avatar → Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token).
+2. **Token name:** `replit-__REPO__`. **Expiration:** 90 days.
+3. **Resource owner:** switch from the personal account to **__OWNER__**.
+   If this is skipped, the repo will not appear in the list.
+4. **Repository access:** *Only select repositories* → `__REPO__`.
+5. **Repository permissions:**
+   - *Contents:* Read and write (push)
+   - *Pull requests:* Read and write (open PRs)
+   - *Workflows:* Read and write — only if you will edit `.github/workflows/`
+   - *Metadata:* Read-only is added automatically
+6. **Generate token** and copy it — GitHub shows it only once.
+7. In Replit: **Tools → Secrets → New Secret**, key `GITHUB_TOKEN`, paste the
+   value. Tell the user not to paste it into the Agent chat.
+8. If the org requires approval the token shows as pending; an org owner
+   approves it at https://github.com/organizations/__OWNER__/settings/personal-access-token-requests
+9. Verify: run `scripts/github-sync.sh status` → `auth: GITHUB_TOKEN works`.
+
+If the token is later rejected, check in this order: expired (make a new one
+and replace the secret), still pending org approval, resource owner was the
+personal account, or `__REPO__` is not in its repository list. To reuse one
+token for another repo, edit its repository list on GitHub and add the same
+secret to that project.
 
 ## After any pull
 

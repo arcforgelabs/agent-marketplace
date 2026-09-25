@@ -3,7 +3,7 @@
 Wire a Replit project to a GitHub repo so the Replit Agent can push, open PRs, and pull main; diagnose or repair Replit/GitHub history drift; set up new Replit projects or accounts against arcforgelabs repos.
 
 A generic operating skill from [arc-forge-tools](https://github.com/arcforgelabs/arc-forge-tools)
-(`components/skills/replit-github`, staged from `55c87c896a71`). Fix and review it
+(`components/skills/replit-github`, staged from `64b2b7b08f7e`). Fix and review it
 there; this package is a generated release payload.
 
 ## Install

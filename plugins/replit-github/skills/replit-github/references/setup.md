@@ -31,8 +31,8 @@ Do this before the Agent makes its first commit if at all possible. Budget
    - `.agents/skills/github-sync/SKILL.md` (from `replit-project-skill.SKILL.md`)
    Add a "GitHub" section to `replit.md` pointing at them. Commit and push
    (via PR, per the rule).
-6. **Token** (human only). GitHub → Settings → Developer settings → Fine-grained
-   tokens → Generate:
+6. **Token** (human only). Open https://github.com/settings/personal-access-tokens/new
+   (GitHub → Settings → Developer settings → Fine-grained tokens → Generate):
    - Resource owner: the org (e.g. `arcforgelabs`)
    - Repository access: *Only select repositories* → the repo
    - Permissions: *Contents* read/write, *Pull requests* read/write
