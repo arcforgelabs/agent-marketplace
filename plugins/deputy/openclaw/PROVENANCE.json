@@ -1,9 +1,9 @@
 {
-  "sourceCommit": "b1648f51be8973aa0848ef7ad211e54bf2059242",
+  "sourceCommit": "39676c10d13fe27687f144bb125f1f8e18c327bd",
   "sourcePath": "plugins/deputy",
   "files": {
     "LICENSE": "04184cfab831fcae8ff9843374a03e17f9d7ca61f362fcaca37d29b83dc7c3b2",
-    "README.md": "9bf5a28c201ea8ea401a1c7402db41019b31cd3d75c71054bdba8095c65c5883",
+    "README.md": "ea0a58a0ecbb33764440b4d97417ddefb749502fb86180973276595ed7a780c8",
     "lib/cli.d.ts": "43e818adf60173644896298637f47b01d5819b17eda46eaa32d0c7d64724d012",
     "lib/cli.js": "cdf12f2239ba39ffe27e5ca669ddd9f5c89ac24bac9e38ee02baee54bc410970",
     "lib/client.d.ts": "c50a8b6a8bc04cf6c8b4eaed509e43f1788fb24f9bb24850a4715b92e5ea9e68",
@@ -15,8 +15,8 @@
     "lib/operations.d.ts": "94e78fb318e0fd7d8ac9c330fa485ad1f12a8ac18d27f03bc55e5a04f555fc90",
     "lib/operations.js": "74523d40c1c254b9161925fb8c6751faeb16f7bdfd7efb8aace6b58698892379",
     "openclaw.plugin.json": "2cc96d31275905f4c61c75a09263dbb68a11644b486b764bb8b2e811122f9bd5",
-    "package.json": "fda3985612a1fd7be2f84d9bc1fc41764a7aee7eb5979201b0d7219b08623d5e",
+    "package.json": "e88b1974d8482a309259e5834b0566da0a5ddc44e3a39c821e0c6e643e646908",
     "skills/deputy/ACCOUNT.template.md": "6e888ea947046c483a1947ec78faaa50dc52c0bf82eabf82dd69c218bf9d7b8b",
-    "skills/deputy/SKILL.md": "4dbb697f6527993b495cf9f9d91063ae5d78cf767edf6ef7b485f1861e5e277d"
+    "skills/deputy/SKILL.md": "2aec8dfa61eed237fc5bea7d52c87912834684050dc7aa8a3dd865d1ab385a7e"
   }
 }

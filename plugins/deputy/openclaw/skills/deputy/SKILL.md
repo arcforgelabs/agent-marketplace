@@ -47,11 +47,11 @@ or the public `agent-marketplace` tag `deputy-v<version>`. A path overlay from a
    accept a SecretRef or token. When ClawHub search shows the intended `latestVersion`:
 
    ```sh
-   openclaw plugins install clawhub:@arcforgelabs/openclaw-deputy@0.1.0
+   openclaw plugins install clawhub:@arcforgelabs/openclaw-deputy@0.1.1
    ```
 
    No `--force` on a clean ClawHub version. GitHub-tag fallback: install
-   `plugins/deputy/openclaw` from `agent-marketplace` tag `deputy-v0.1.0` with
+   `plugins/deputy/openclaw` from `agent-marketplace` tag `deputy-v0.1.1` with
    `--force --accept-capabilities --acknowledge-install-policy-warning`.
    If load fails with missing `typebox`, in the extension directory run
    `npm install --omit=dev --omit=peer`. Do not install the OpenClaw peer there.
