@@ -27,6 +27,18 @@
         "authentication": "NONE"
       },
       "category": "Developer Tools"
+    },
+    {
+      "name": "zavy",
+      "source": {
+        "source": "local",
+        "path": "./plugins/zavy"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "Productivity"
     }
   ]
 }

@@ -20,6 +20,11 @@
       "name": "replit-github",
       "source": "replit-github",
       "description": "Wire a Replit project to a GitHub repo so the Replit Agent can push, open PRs, and pull main; diagnose or repair Replit/GitHub history drift."
+    },
+    {
+      "name": "zavy",
+      "source": "zavy",
+      "description": "Zavy/Zavy360 knowledge: where data lives, reports vs operational pages, exports, notes/billing/recalls, and optional browser inspection."
     }
   ]
 }

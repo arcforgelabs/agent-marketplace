@@ -31,6 +31,17 @@
       },
       "repository": "https://github.com/arcforgelabs/agent-marketplace",
       "license": "MIT"
+    },
+    {
+      "name": "zavy",
+      "source": "zavy",
+      "description": "Zavy/Zavy360 knowledge: where data lives, reports vs operational pages, exports, notes/billing/recalls, and optional browser inspection.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Arc Forge Labs"
+      },
+      "repository": "https://github.com/arcforgelabs/agent-marketplace",
+      "license": "MIT"
     }
   ]
 }

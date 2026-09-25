@@ -1,0 +1,25 @@
+{
+  "sourceRepo": "arcforgelabs/arc-forge-tools",
+  "sourceCommit": "fe8d9f38bc4c75ae3d98c334000b07416f60e84e",
+  "sourcePath": "components/skills/zavy",
+  "kind": "skill",
+  "version": "0.1.0",
+  "files": {
+    ".claude-plugin/plugin.json": "ac59efb9241c96b8a5f62d329c8af2ad5dff522f7c4fe36cfc92029d1fa0f6bf",
+    ".codex-plugin/plugin.json": "83e01c8f70ce49a8057a32abf7bb41dd45cfcc222b762a82f47a1f4bfedc17bf",
+    ".cursor-plugin/plugin.json": "5470b4f52c5e22a555c988493658fe76157f1c4dc2470a56c6d27a17b3a465d8",
+    "README.md": "95b953fc2abe98c8abf2128abe3c59669270fc804ea8646be1afd64d9d51b709",
+    "package.json": "5fadc909635a235a811983bfc0c89dfd8e40d50551e42d8ac5f9e86b185817b1",
+    "skills/zavy/README.md": "488d12bc923ba0be15c496ed880e913a77250064fdd7a4dd8495fca8e6dbf79b",
+    "skills/zavy/SKILL.md": "bd19805492b0e0d973d1647553238d025e45fb6ce509421c95511451a1ee5b43",
+    "skills/zavy/references/api-and-browser.md": "c2cff5ec2ecdf01ffd8d003f95f99b6f7a3d8fb12257cd43c3d6cb6e07486995",
+    "skills/zavy/references/appointments-and-blockers.md": "0c9627819181e8b6d88fa84104e6fa292f2b9b131fe23bd3307c408b2eb92788",
+    "skills/zavy/references/clinical-records-and-notes.md": "96616d1e801ba9b43f03e0894607f434e490074a67acb9987f1d43bbf0b7b443",
+    "skills/zavy/references/lab-invoice-entry.md": "d8374d1251ef9fd9190f9d30bebe2bf0c56af6be636c0659aa538b94604d5b6a",
+    "skills/zavy/references/notes-editor-automation.md": "9abe537202ec4d3de8031256a7868c23401c31a33737c60e7cd64a3a0c4653fd",
+    "skills/zavy/references/online-bookings.md": "2113e44e8419adf38f7cc70a7afe5839206f48d2bf353e0a3a6aa0ceb69bf1d3",
+    "skills/zavy/references/operations.md": "301f2a572638a12e4f7cc465cb716be8127ea44f1ba77d2769d24d5ff30edbc0",
+    "skills/zavy/references/recalls-and-reports.md": "dda6725a4bb3c628d797db8586da6ea5f860897e97e9217320a2425c65f8fba7",
+    "skills/zavy/scripts/zavy-cdp-helper.mjs": "089a88c641901bb7f8f170f908ebc2425533da3e9ac5eeb44c8926db1e430a30"
+  }
+}

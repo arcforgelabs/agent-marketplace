@@ -1,0 +1,16 @@
+{
+  "name": "zavy",
+  "version": "0.1.0",
+  "description": "Zavy/Zavy360 knowledge: where data lives, reports vs operational pages, exports, notes/billing/recalls, and optional browser inspection.",
+  "author": {
+    "name": "Arc Forge Labs",
+    "email": "support@arcforge.au"
+  },
+  "homepage": "https://github.com/arcforgelabs/agent-marketplace/tree/main/plugins/zavy",
+  "repository": "https://github.com/arcforgelabs/agent-marketplace",
+  "license": "MIT",
+  "keywords": [
+    "skill",
+    "zavy"
+  ]
+}
