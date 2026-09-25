@@ -1,0 +1,20 @@
+import type { DeputyClient } from "./client.js";
+import { type ResolvedDeputyConfig } from "./config.js";
+type Dict = Record<string, unknown>;
+export declare function status(client: DeputyClient, config: ResolvedDeputyConfig, params?: Dict): Promise<{
+    connected: boolean;
+    installHost: string;
+    me: Dict;
+    companyCount: number;
+    companyIds: string[];
+    timezone: string | null;
+    rateLimit: import("./client.js").GovernorSnapshot;
+}>;
+export declare function employees(client: DeputyClient, _config: ResolvedDeputyConfig, params: Dict): Promise<unknown>;
+export declare function timesheets(client: DeputyClient, _config: ResolvedDeputyConfig, params: Dict): Promise<unknown>;
+export declare function leave(client: DeputyClient, _config: ResolvedDeputyConfig, params: Dict): Promise<unknown>;
+export declare function rosters(client: DeputyClient, _config: ResolvedDeputyConfig, params: Dict): Promise<unknown>;
+export declare function locations(client: DeputyClient, _config: ResolvedDeputyConfig, params: Dict): Promise<unknown>;
+export declare function areas(client: DeputyClient, _config: ResolvedDeputyConfig, params: Dict): Promise<unknown>;
+export declare function pay(client: DeputyClient, _config: ResolvedDeputyConfig, params: Dict): Promise<unknown>;
+export {};

@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "b1648f51be8973aa0848ef7ad211e54bf2059242",
+  "sourcePath": "plugins/deputy",
+  "files": {
+    "LICENSE": "04184cfab831fcae8ff9843374a03e17f9d7ca61f362fcaca37d29b83dc7c3b2",
+    "README.md": "9bf5a28c201ea8ea401a1c7402db41019b31cd3d75c71054bdba8095c65c5883",
+    "lib/cli.d.ts": "43e818adf60173644896298637f47b01d5819b17eda46eaa32d0c7d64724d012",
+    "lib/cli.js": "cdf12f2239ba39ffe27e5ca669ddd9f5c89ac24bac9e38ee02baee54bc410970",
+    "lib/client.d.ts": "c50a8b6a8bc04cf6c8b4eaed509e43f1788fb24f9bb24850a4715b92e5ea9e68",
+    "lib/client.js": "71aa611ef17887033a8843418bd164d2040096ad3d1c5f87011069493984eaa4",
+    "lib/config.d.ts": "63083a1aff1dd8b4fc7542062126f386bc04a9d1df1dd1649899c2aede2e3beb",
+    "lib/config.js": "23d1d682f5b23725883276277ea4021ad9a5c4952196add0b3c249e785b9f750",
+    "lib/index.d.ts": "84b33238011ee44b8593e96cad4e247fca96dd08e6e27d10a1dc54e52e83bdc1",
+    "lib/index.js": "d985f89284fc81e6c7afdffcb3ebefd8520a2abe809dea52f5b823c56d4e4556",
+    "lib/operations.d.ts": "94e78fb318e0fd7d8ac9c330fa485ad1f12a8ac18d27f03bc55e5a04f555fc90",
+    "lib/operations.js": "74523d40c1c254b9161925fb8c6751faeb16f7bdfd7efb8aace6b58698892379",
+    "openclaw.plugin.json": "2cc96d31275905f4c61c75a09263dbb68a11644b486b764bb8b2e811122f9bd5",
+    "package.json": "fda3985612a1fd7be2f84d9bc1fc41764a7aee7eb5979201b0d7219b08623d5e",
+    "skills/deputy/ACCOUNT.template.md": "6e888ea947046c483a1947ec78faaa50dc52c0bf82eabf82dd69c218bf9d7b8b",
+    "skills/deputy/SKILL.md": "4dbb697f6527993b495cf9f9d91063ae5d78cf767edf6ef7b485f1861e5e277d"
+  }
+}
