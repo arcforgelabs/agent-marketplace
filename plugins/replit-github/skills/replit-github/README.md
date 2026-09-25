@@ -12,6 +12,7 @@ repairing projects whose Replit and GitHub histories have already diverged.
 - `references/supervising.md` — driving it from Claude Code/Codex via MCP + browser
 - `assets/github-sync.sh`, `assets/git-credential-github.sh`,
   `assets/replit-project-skill.SKILL.md` — files to copy into the target repo
-  (replace `__OWNER__/__REPO__`; the script also honours `GITHUB_REPO`)
+  (repo-agnostic: repo and default branch are detected; override with
+  `GITHUB_REPO` / `GITHUB_DEFAULT_BRANCH`)
 
 First applied to `arcforgelabs/field-crew` on 2026-09-18.

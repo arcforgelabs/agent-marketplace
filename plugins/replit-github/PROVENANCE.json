@@ -1,6 +1,6 @@
 {
   "sourceRepo": "arcforgelabs/arc-forge-tools",
-  "sourceCommit": "64b2b7b08f7ec18b66d7f203300cced3cc6d9eb1",
+  "sourceCommit": "1c563b362a47652f11a880f45b842f149d677d23",
   "sourcePath": "components/skills/replit-github",
   "kind": "skill",
   "version": "0.1.1",
@@ -8,15 +8,15 @@
     ".claude-plugin/plugin.json": "2ec93f447b3f8039c71152f92a6725780cdd9f714959e656368b341f0f957ce7",
     ".codex-plugin/plugin.json": "7fbdd8fd98559a492ef71c1aa1932f509dad09db5fb4bbc61985a9434772f636",
     ".cursor-plugin/plugin.json": "161d9dca837036644d6e4107763f799757360ac72dcbd852790d328c60e38db3",
-    "README.md": "858f4703838485a8e4a3a58c30898763353520f61a9d2dd91091d158746ef312",
+    "README.md": "3a68cafebca24c5664f65a645344382588935a226b7fd8eb221763947235418a",
     "package.json": "8c15388f2cd628897db39e9197880afc25328714a75d53f470678475eb68fae1",
-    "skills/replit-github/README.md": "377b209a5c8f0136c58d2edafaa7f51a0328a7962475837bd1f22d732165ad99",
-    "skills/replit-github/SKILL.md": "8431b58271a217d378187c993b1789c6b72ba1da3001aee4392157c5799bede9",
+    "skills/replit-github/README.md": "66f2af881becdf1d9849c6219f5d4965a719401b9c15c324d29e3dcd22ca60be",
+    "skills/replit-github/SKILL.md": "fa64150ee102943c343d7551da5d5306fd7b745a01c5d1622b8d5ef350325b6e",
     "skills/replit-github/assets/git-credential-github.sh": "1d8c4178aa47250d01f71fbee5c120f4f7ec1cdb3183622195f70f6fc2d13a75",
-    "skills/replit-github/assets/github-sync.sh": "da22a66fed902b0eeaf0e9c5db6158e81549ddaf22f92a53de4e27990f16cabf",
-    "skills/replit-github/assets/replit-project-skill.SKILL.md": "d4902206beb08e76e9835f05e96add050a40a6dc232bcf281aa2ccb898231a1f",
+    "skills/replit-github/assets/github-sync.sh": "c2103f52e7f71873dc1c63af8153481d2741520d7ff3762aa7df368e5bb300ea",
+    "skills/replit-github/assets/replit-project-skill.SKILL.md": "2afeea5989266f99fae89a57ca323bac01ba0ecbc9e8e92bca8ee0eb1957bb22",
     "skills/replit-github/references/repair.md": "caafe26e09420a7127253b57366efbbccb4df0596117459ad9dc38a518b14290",
-    "skills/replit-github/references/setup.md": "2b5b05d1b853efe48404cf55714d623124636e69e214896a78539aac4403eff1",
+    "skills/replit-github/references/setup.md": "dd791232a0b9a5224268a172c2b2af1d2a8e127bf9ffd8405a8ec72e873efca9",
     "skills/replit-github/references/supervising.md": "78d259a00c609d6b8070b9e8a55d1e20bd171cd80b7e5edfcd28e4a750990bfd"
   }
 }

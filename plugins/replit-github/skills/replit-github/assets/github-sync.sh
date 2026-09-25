@@ -2,7 +2,7 @@
 # GitHub sync helper for the Replit workspace (and any clone).
 #
 #   scripts/github-sync.sh status                 # remote, upstream, ahead/behind, auth
-#   scripts/github-sync.sh pull                   # fast-forward main from GitHub
+#   scripts/github-sync.sh pull                   # fast-forward the default branch from GitHub
 #   scripts/github-sync.sh push-branch [name]     # push current (or named) branch
 #   scripts/github-sync.sh open-pr "<title>" [body-file]   # push + open PR from current branch
 #   scripts/github-sync.sh handoff                # print a handoff block when no token is available
@@ -14,17 +14,32 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HELPER="$ROOT/scripts/git-credential-github.sh"
-REPO_URL="https://github.com/${GITHUB_REPO:-__OWNER__/__REPO__}.git"
-OWNER_REPO="${GITHUB_REPO:-__OWNER__/__REPO__}"
-MAIN="main"
 
 die() { echo "github-sync: $*" >&2; exit 1; }
 
-# The Replit Git pane names the GitHub remote after the workspace (subrepl-*);
-# a plain clone calls it origin. Find whichever remote points at GitHub.
+# Normalise any GitHub remote URL (https, ssh, with or without .git) to owner/repo.
+url_to_owner_repo() { printf '%s\n' "$1" | sed -E 's#^(https://([^@/]+@)?github\.com/|git@github\.com:|ssh://git@github\.com/)##; s#\.git$##; s#/$##'; }
+
+# The Replit Git pane may name the GitHub remote after the workspace (subrepl-*);
+# a plain clone calls it origin. Find whichever remote points at OWNER_REPO.
 remote_name() {
-  git -C "$ROOT" remote -v | awk -v url="$REPO_URL" '$2 == url && $3 == "(fetch)" {print $1; exit}'
+  local name url
+  while read -r name url _; do
+    case "$url" in *github.com[/:]*) ;; *) continue ;; esac
+    [ "$(url_to_owner_repo "$url")" = "$OWNER_REPO" ] && { echo "$name"; return; }
+  done < <(git -C "$ROOT" remote -v | awk '$3 == "(fetch)"')
 }
+
+# Repo: GITHUB_REPO env, else the value baked in at install, else the first
+# github.com remote. Keeps one script working in every repo.
+OWNER_REPO="${GITHUB_REPO:-__OWNER__/__REPO__}"
+case "$OWNER_REPO" in
+  __OWNER__/*|*/__REPO__)
+    OWNER_REPO="$(git -C "$ROOT" remote -v | awk '$3 == "(fetch)" && $2 ~ /github\.com[\/:]/ {print $2; exit}')"
+    [ -n "$OWNER_REPO" ] || die "no github.com remote found; set GITHUB_REPO=<owner>/<repo>"
+    OWNER_REPO="$(url_to_owner_repo "$OWNER_REPO")" ;;
+esac
+REPO_URL="https://github.com/$OWNER_REPO.git"
 
 ensure_remote() {
   local r
@@ -34,6 +49,23 @@ ensure_remote() {
     r=origin
   fi
   echo "$r"
+}
+
+# Default branch: GITHUB_DEFAULT_BRANCH env, else the remote's HEAD (local ref,
+# then GitHub itself), else whichever of master/main exists locally.
+default_branch() {
+  [ -n "${GITHUB_DEFAULT_BRANCH:-}" ] && { echo "$GITHUB_DEFAULT_BRANCH"; return; }
+  local r b; r="$(remote_name)"
+  if [ -n "$r" ]; then
+    b="$(git -C "$ROOT" symbolic-ref --short "refs/remotes/$r/HEAD" 2>/dev/null || true)"
+    [ -n "$b" ] && { echo "${b#"$r"/}"; return; }
+    b="$(GIT_TERMINAL_PROMPT=0 git -C "$ROOT" ls-remote --symref "$REPO_URL" HEAD 2>/dev/null | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')"
+    [ -n "$b" ] && { echo "$b"; return; }
+  fi
+  for b in master main; do
+    git -C "$ROOT" show-ref --verify --quiet "refs/heads/$b" && { echo "$b"; return; }
+  done
+  echo main
 }
 
 ensure_helper() {
@@ -60,7 +92,7 @@ cmd_status() {
     if git -C "$ROOT" ls-remote --exit-code --heads "$r" "$MAIN" >/dev/null 2>&1; then
       echo "auth:     GITHUB_TOKEN works (ls-remote ok)"
       git -C "$ROOT" fetch -q "$r" "$MAIN"
-      echo "vs main:  $(git -C "$ROOT" rev-list --left-right --count "HEAD...$r/$MAIN" | awk '{print "ahead " $1 ", behind " $2}')"
+      echo "vs $MAIN: $(git -C "$ROOT" rev-list --left-right --count "HEAD...$r/$MAIN" | awk '{print "ahead " $1 ", behind " $2}')"
     else
       echo "auth:     GITHUB_TOKEN is set but GitHub rejected it (expired, pending org approval, wrong resource owner, or repo not selected)"
     fi
@@ -77,7 +109,7 @@ cmd_pull() {
   git -C "$ROOT" fetch "$r" "$MAIN"
   git -C "$ROOT" merge --ff-only "$r/$MAIN"
   git -C "$ROOT" branch --set-upstream-to="$r/$MAIN" "$MAIN" >/dev/null
-  echo "main is now $(git -C "$ROOT" rev-parse --short HEAD)"
+  echo "$MAIN is now $(git -C "$ROOT" rev-parse --short HEAD)"
 }
 
 cmd_push_branch() {
@@ -113,7 +145,7 @@ branch:  $b
 head:    $(git -C "$ROOT" rev-parse HEAD)
 dirty:   $(git -C "$ROOT" status --porcelain | wc -l) uncommitted file(s)
 commits not on $MAIN:
-$(git -C "$ROOT" log --format='  %h %s' "$MAIN..HEAD" 2>/dev/null || echo '  (unknown - main not fetched)')
+$(git -C "$ROOT" log --format='  %h %s' "$MAIN..HEAD" 2>/dev/null || echo '  (unknown - $MAIN not fetched)')
 
 To publish this to GitHub, a human (or a supervising agent driving the
 browser) opens the Replit Git tool on this project, confirms "Pass GitHub
@@ -127,6 +159,9 @@ save it as the Replit Secret GITHUB_TOKEN, then re-run:
 scripts/github-sync.sh open-pr "<title>"
 EOF
 }
+
+[ -n "${GITHUB_TOKEN:-}" ] && ensure_helper
+MAIN="$(default_branch)"
 
 case "${1:-}" in
   status) cmd_status ;;
