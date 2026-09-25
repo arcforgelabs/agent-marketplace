@@ -22,7 +22,7 @@ comes from `{install}.{geo}.deputy.com/exec/devapp/oauth_clients` → client
 detail → Get an Access Token (shown once). Never put it in chat, git, or argv.
 
 ```sh
-openclaw plugins install clawhub:@arcforgelabs/openclaw-deputy@0.1.0
+openclaw plugins install clawhub:@arcforgelabs/openclaw-deputy@0.1.1
 openclaw config set plugins.entries.arcforgelabs-deputy.config --strict-json '{
   "installHost": "northwind.au.deputy.com",
   "apiToken": {"source":"store","provider":"default","id":"DEPUTY_API_TOKEN"}
