@@ -27,3 +27,16 @@ Maintain implementations in their canonical source repositories. Generate or cop
 8. Publish through the appropriate delivery target. A ClawHub submission or successful dry run is not proof of public availability; report registry review status accurately.
 
 Shared portable payloads may carry multiple host manifests. Split assemblies only when their runtime needs differ. Actual account profiles are separately authenticated private delivery and must never be bundled in public releases or overwritten by plugin upgrades.
+
+<!-- arc-forge-org-consistency:start -->
+## Pull request body
+
+Use `.github/pull_request_template.md` and keep the body current:
+
+- **What Problem This Solves** — the concrete problem and when it happens.
+- **Why This Change Was Made** — the shipped solution and any boundary that matters.
+- **User Impact** — what someone can now do, or a plain statement that there is no user-visible change.
+- **Evidence** — the command, commit, result, and what was not run. Screenshots show the real product. Placeholder text does not count.
+
+Edit the pull request body when someone asks for more proof. A review comment can point at that edit. The body stays the record. Maintainer authorship does not remove this requirement.
+<!-- arc-forge-org-consistency:end -->
