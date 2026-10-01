@@ -13,13 +13,7 @@ Types: feat, fix, improve, refactor, docs, chore.
 <!--
 The concrete user, product, or operational problem.
 For a fix: "Fixes an issue where <someone> <hits this> when <condition>."
-Name the workflow. Leave the code-level cause for the next section.
--->
-
-## Why This Change Was Made
-
-<!--
-The shipped solution in one or two sentences, including a boundary that matters.
+Name the workflow. Leave the code-level cause for Why This Change Was Made.
 -->
 
 ## User Impact
@@ -27,6 +21,12 @@ The shipped solution in one or two sentences, including a boundary that matters.
 <!--
 What a user, operator, or developer can now do or expect.
 If nobody outside the change can tell, say there is no user-visible change.
+-->
+
+## Why This Change Was Made
+
+<!--
+The shipped solution in one or two sentences, including a boundary that matters.
 -->
 
 ## Evidence
