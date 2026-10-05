@@ -1,9 +1,9 @@
 {
-  "sourceCommit": "42ba2a7d2e50026a4861612a70e72e5fbbc46dab",
+  "sourceCommit": "feaab7bd7b6b2aa34c3adbf50b80b69603ccc5fe",
   "sourcePath": "plugins/xero",
   "files": {
     "LICENSE": "04184cfab831fcae8ff9843374a03e17f9d7ca61f362fcaca37d29b83dc7c3b2",
-    "README.md": "1c790027819a9825974563422834fc49b10ba41af2451ac9e528e680313e81e7",
+    "README.md": "a66520964a4012b26cb3b934d1bd7171a08bc898f225b239a0cd32887063718a",
     "connector/MODULE.json": "f1cef5e936506e3ad5cb4632182dc5990b404fb3f6822c58ece5ca8381417867",
     "connector/MODULE.md": "9d92b0791deb0f90fb1e16649e7e16cb80d89b8cce7a4311d348f0f30ecf7621",
     "connector/cli/xero": "ce5cebca9096558999611cb9a5de124b4f02b62415578abcadae184a72cff88a",
@@ -39,14 +39,14 @@
     "connector/scripts/xero_reconciliation.py": "45881265fa2566ad77ec94203360d5022c4a386c5e7df9a929ccd51341a0e28c",
     "connector/scripts/xero_smoke.py": "16569abdf85b479c666571527b93b9118a869ccc5735040aedf04c03b2948e64",
     "connector/scripts/xero_workflows_mcp.py": "1cea5943052bbdb4509d6b1ed7b67b1f540dbda33938c0fe14729d243ec6da02",
-    "core.js": "dd437e4163c70b13f747f516819e7e969d728817adfdcdfd29efce642a55d761",
-    "index.js": "8ca350aa799a06cf636117fce26b319e7e314ef2f4134f8757d4a9037d08bec7",
+    "core.js": "8e1b04730697cc725fe430150d9e1c67f97d677ec8352d5a7086b0b0ea82bba4",
+    "index.js": "a666321278131d7dae6b9b4b72a521fa8dd9c8a63eb7bbe5d0d17680567d967a",
     "oauth-app.example.json": "2e3d91c134a577066239635db8f30cf4c8ac133ddf2e86d64840aea8b449be04",
-    "openclaw.plugin.json": "b3da703d62fe5ce2da1ac176e8a87aae1fd06d777aec37f52237f838b53e19c5",
-    "package.json": "b4f5e594915a50ae4c04f0fcf6876a65373d194595b5c4f67bce594f3e0e6e53",
+    "openclaw.plugin.json": "bed6026d401d96de8484657f6727b34d7a2fec44f24fc03b01988f3b3ebca6ad",
+    "package.json": "acace48e85990cb7bd972b1547ba160cde1a9dd04b0dc6b301fdd98adcc05b5b",
     "scripts/run-xero-mcp": "7dbbd77263c99f224ba998684e2452533b8b65e5103ab7940a35a96107aca43c",
     "shared-service.js": "2f220ee2fcf3bce22a51b7681f312726ef9084a5c8fc79e8f3d2c3b6f066df94",
-    "skills/xero-plugin/SKILL.md": "7f20ca88b32a5c791511e730990cce1699b58f059501ed0c1d6e4e2e7a034557",
+    "skills/xero-plugin/SKILL.md": "7c5410d4d40e4a1f139ed21be340a1efc31184907b188aac5a2938744e25e47f",
     "skills/xero-plugin/references/org-bill-runbook.template.md": "f4c0c0ed6638caba64334784016c37085a75456018f5a50f0cbcd40a0ae38c5a"
   }
 }

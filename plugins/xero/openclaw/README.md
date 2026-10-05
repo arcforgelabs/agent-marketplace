@@ -83,8 +83,9 @@ for any remaining stdio MCP servers, set `mcp.sessionIdleTtlMs` (for example
 ## Tool policy
 
 `xero_status` is read-only and joins the `coding`, `messaging` and `full`
-profiles. `xero_evidence_attachments` and `xero_evidence_audit` can write files
-on the Gateway host, so they are opt-in. A host with a restrictive
+profiles. `xero_evidence_attachments` and `xero_evidence_audit` are read-only,
+return their results inline, and join the `coding` and `full` profiles. A host
+with a restrictive
 `tools.allow` list grants the plugin by id rather than listing every tool:
 
 ```sh
@@ -100,9 +101,26 @@ with `xero_status` in a fresh session.
 
 - Native MCP server: `xero` (shared streamable HTTP, loopback)
 - Read-only local tool: `xero_status`
+- Read-only Xero tools: `xero_evidence_attachments` (list, or download a
+  bill's original upload as base64) and `xero_evidence_audit` (bills or
+  invoices with no source document)
 - Read-only Gateway bindings: `xero.status`, `xero.oauth.contract`,
   `xero.tenants.local`
 - CLI command: `openclaw xero ...`
+
+## Host files
+
+Agent tools never accept a Gateway host path. `xero_evidence_attachments`
+download returns `content_base64` with `filename`, `content_type`, and
+`byte_count`, up to 4 MiB; larger files fail closed. `xero_evidence_audit`
+returns its report inline, with full totals and each missing-record list capped
+by `max_records` (default 200, maximum 1000). Writing a file to disk is an
+operator action through the CLI:
+
+```sh
+xero evidence attachments download bill <InvoiceID> <FileName> --out <path>
+xero evidence audit --kinds bill --out <path>
+```
 
 The package is OpenClaw-only. It does not publish Codex, Claude, or
 ClawHub catalog metadata.

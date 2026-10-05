@@ -1,7 +1,13 @@
 import { Type } from "typebox";
 import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 
-import xeroCore, { readStatus, runEvidenceAttachments, runEvidenceAudit } from "./core.js";
+import xeroCore, {
+  DEFAULT_AUDIT_RECORDS,
+  MAX_AUDIT_RECORDS,
+  readStatus,
+  runEvidenceAttachments,
+  runEvidenceAudit,
+} from "./core.js";
 
 const plugin = defineToolPlugin({
   id: "arcforgelabs-xero",
@@ -39,7 +45,7 @@ const plugin = defineToolPlugin({
     tool({
       name: "xero_evidence_attachments",
       label: "Xero bill attachments",
-      description: "List or download the original uploaded file on a Xero bill/invoice (PDF/JPEG), not Xero's generated invoice PDF. Use for OCR.",
+      description: "List or download the original uploaded file on a Xero bill/invoice (PDF/JPEG), not Xero's generated invoice PDF. Download returns the file inline as base64 (content_base64, filename, content_type, byte_count), up to 4 MiB; it never writes a host file. Use for OCR.",
       parameters: Type.Object(
         {
           action: Type.Union([Type.Literal("list"), Type.Literal("download")]),
@@ -55,8 +61,7 @@ const plugin = defineToolPlugin({
             Type.Literal("purchase-order"),
           ]),
           object_id: Type.String({ description: "Xero object UUID. For bills this is InvoiceID." }),
-          filename: Type.Optional(Type.String()),
-          out_path: Type.Optional(Type.String({ description: "Local path to write the downloaded file." })),
+          filename: Type.Optional(Type.String({ description: "Attachment FileName from action=list. Required for download." })),
           tenant_id: Type.Optional(Type.String()),
         },
         { additionalProperties: false },
@@ -66,11 +71,13 @@ const plugin = defineToolPlugin({
     tool({
       name: "xero_evidence_audit",
       label: "Xero attachment audit",
-      description: "Read-only sweep of which bills/invoices lack a stapled source document.",
+      description: "Read-only sweep of which bills/invoices lack a stapled source document. Returns the report inline with totals; record lists are capped at max_records.",
       parameters: Type.Object(
         {
           kinds: Type.Optional(Type.Array(Type.Union([Type.Literal("bill"), Type.Literal("invoice"), Type.Literal("bank-transaction")]))),
-          out_path: Type.Optional(Type.String()),
+          max_records: Type.Optional(
+            Type.Integer({ minimum: 1, maximum: MAX_AUDIT_RECORDS, default: DEFAULT_AUDIT_RECORDS, description: "Cap on each returned missing-record list; totals are always complete." }),
+          ),
           tenant_id: Type.Optional(Type.String()),
         },
         { additionalProperties: false },

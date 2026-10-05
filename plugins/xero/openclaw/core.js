@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,11 @@ import { SHARED_HEALTH_URL, createSharedService, probeSharedService } from "./sh
 const PLUGIN_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLED_CONNECTOR_ROOT = path.join(PLUGIN_ROOT, "connector");
 const REPOSITORY_CONNECTOR_ROOT = path.resolve(PLUGIN_ROOT, "../../connectors/xero");
+// Agent-facing results stay inline: no tool accepts or returns a Gateway host path.
+export const MAX_ATTACHMENT_DOWNLOAD_BYTES = 4 * 1024 * 1024;
+export const DEFAULT_AUDIT_RECORDS = 200;
+export const MAX_AUDIT_RECORDS = 1000;
+const HOST_PATH_PARAMS = ["out_path", "out", "path", "file"];
 const SECRET_KEY_PATTERN = /(access.?token|refresh.?token|id.?token|authorization|client.?secret|cookie|mfa|totp|password)/i;
 const SECRET_ENV_NAMES = new Set([
   "XERO_ACCESS_TOKEN",
@@ -243,7 +248,55 @@ export async function runCliJson(config = {}, args = []) {
   return execJson(paths.cli, args, { cwd: paths.root, timeoutMs });
 }
 
+function rejectHostPaths(params) {
+  const named = HOST_PATH_PARAMS.filter((name) => params[name] !== undefined);
+  if (!named.length) return null;
+  return {
+    ok: false,
+    error: `${named.join(", ")} is not accepted: agent tools return content inline and never read or write Gateway host paths. Operators can use the xero CLI --out option.`,
+  };
+}
+
+async function downloadAttachment(config, params) {
+  if (!params.filename) {
+    return { ok: false, error: "download requires filename." };
+  }
+  // The plugin owns this private directory; the agent never names a host path.
+  const directory = await mkdtemp(path.join(os.tmpdir(), "arcforge-xero-attachment-"));
+  try {
+    const target = path.join(directory, "attachment");
+    const args = ["evidence", "attachments", "download", params.kind, params.object_id, params.filename, "--out", target];
+    if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
+    const result = await runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
+    if (!result.ok) return result;
+    const { size } = await stat(target);
+    const { out: _privatePath, ...payload } = result.payload || {};
+    const summary = {
+      ok: true,
+      kind: params.kind,
+      object_id: params.object_id,
+      tenant_id: payload.tenant_id,
+      filename: payload.filename || params.filename,
+      content_type: payload.content_type || "application/octet-stream",
+      byte_count: size,
+      max_bytes: MAX_ATTACHMENT_DOWNLOAD_BYTES,
+    };
+    if (size > MAX_ATTACHMENT_DOWNLOAD_BYTES) {
+      return {
+        ...summary,
+        ok: false,
+        error: `Attachment is ${size} bytes, over the ${MAX_ATTACHMENT_DOWNLOAD_BYTES}-byte inline limit. An operator can fetch it with: xero evidence attachments download ${params.kind} <object_id> <filename> --out <path>.`,
+      };
+    }
+    return { ...summary, encoding: "base64", content_base64: (await readFile(target)).toString("base64") };
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
 export async function runEvidenceAttachments(config = {}, params = {}) {
+  const rejected = rejectHostPaths(params);
+  if (rejected) return rejected;
   const action = params.action;
   const kind = params.kind;
   const objectId = params.object_id;
@@ -255,33 +308,35 @@ export async function runEvidenceAttachments(config = {}, params = {}) {
     if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
     return runCliJson(config, args);
   }
-  if (action === "download") {
-    if (!params.filename || !params.out_path) {
-      return { ok: false, error: "download requires filename and out_path." };
-    }
-    const args = [
-      "evidence",
-      "attachments",
-      "download",
-      kind,
-      objectId,
-      params.filename,
-      "--out",
-      params.out_path,
-    ];
-    if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
-    return runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
-  }
+  if (action === "download") return downloadAttachment(config, params);
   return { ok: false, error: "action must be list or download." };
 }
 
+function auditRecordLimit(value) {
+  if (!Number.isInteger(value)) return DEFAULT_AUDIT_RECORDS;
+  return Math.min(Math.max(value, 1), MAX_AUDIT_RECORDS);
+}
+
 export async function runEvidenceAudit(config = {}, params = {}) {
+  const rejected = rejectHostPaths(params);
+  if (rejected) return rejected;
   const args = ["evidence", "audit"];
   const kinds = Array.isArray(params.kinds) && params.kinds.length ? params.kinds : ["bill"];
   args.push("--kinds", ...kinds);
-  if (params.out_path) args.push("--out", params.out_path);
   if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
-  return runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
+  const result = await runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
+  const report = result.payload;
+  if (!result.ok || !report || typeof report !== "object") return result;
+  // Keep totals and per-kind counts; bound only the record lists returned inline.
+  const limit = auditRecordLimit(params.max_records);
+  const bounded = { ...report, max_records: limit, truncated: false };
+  for (const key of ["missing_current", "missing_frozen"]) {
+    const records = Array.isArray(report[key]) ? report[key] : [];
+    bounded[key] = records.slice(0, limit);
+    bounded[`${key}_count`] = records.length;
+    if (records.length > limit) bounded.truncated = true;
+  }
+  return { ...result, payload: bounded };
 }
 
 function gatewayHandler(run) {
