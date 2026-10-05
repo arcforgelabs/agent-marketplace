@@ -54,9 +54,10 @@ Not in this product: Hubdoc documents not yet published to Xero; Xero Files
 without `files` scope; Xero's generated invoice PDF (that is not the supplier
 upload).
 
-Lower-level attachment tools: `xero_evidence_attachments` and CLI
-`xero evidence attachments list|download bill <InvoiceID>`.
-`xero_evidence_audit` finds bills with `HasAttachments=false`.
+Lower-level attachment tools: `xero_evidence_attachments` lists a bill's
+attachments, or downloads one inline as `content_base64` (4 MiB limit).
+`xero_evidence_audit` finds bills with `HasAttachments=false` and returns the
+report inline. Neither tool takes a host path; do not ask for one.
 
 ## Operating rules
 
