@@ -20,13 +20,15 @@ import time
 from pathlib import Path
 from typing import Any
 
+import xero_version
+
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = MODULE_ROOT.parents[1]
 XERO_CLI = MODULE_ROOT / "cli" / "xero"
 XERO_RECONCILE = MODULE_ROOT / "reconciliation" / "xero-reconcile"
 SERVER_NAME = "xero-workflows"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = xero_version.release_version()
 
 
 class XeroPluginMcpError(RuntimeError):

@@ -33,13 +33,14 @@ from pathlib import Path
 from typing import Any
 
 import xero_profiles
+import xero_version
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 SERVER_NAME = "xero"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = xero_version.release_version()
 PROTOCOL_VERSION_DEFAULT = "2025-06-18"
 HANDSHAKE_TIMEOUT = 120  # seconds — the official Node server may download/patch on first run
 
@@ -531,7 +532,7 @@ def _call_xero_backends() -> dict[str, Any]:
     businesses = _ordered_businesses()
     multi = len(businesses) > 1
     header = (
-        f"xero aggregator v{SERVER_VERSION} — {len(businesses)} business(es), "
+        f"Arc Forge Xero {SERVER_VERSION} ({xero_version.PACKAGE_NAME}) — {len(businesses)} business(es), "
         f"{len(_backends)} backends"
     )
     lines: list[str] = [header]
@@ -551,8 +552,10 @@ def _call_xero_backends() -> dict[str, Any]:
             lines.append(f"    status:  {b.status}")
             if b.status == "up":
                 lines.append(
-                    f"    server:  {b.child_server_info.get('name')} {b.child_server_info.get('version')}"
+                    f"    server:  {b.child_server_info.get('name')} reports version {b.child_server_info.get('version')}"
                 )
+                if b.label == "xero-official":
+                    lines.append(f"    package: {xero_version.official_package_spec()} (upstream)")
                 if b.restarts:
                     lines.append(f"    restarts: {b.restarts}")
                 lines.append(f"    tools ({len(b.tools)}):")
@@ -886,6 +889,8 @@ def health_payload() -> dict[str, Any]:
         "status": status,
         "server": SERVER_NAME,
         "version": SERVER_VERSION,
+        "package": xero_version.PACKAGE_NAME,
+        "official_package": xero_version.official_package_spec(),
         "pid": os.getpid(),
         "uptime_s": int(time.monotonic() - _service_started_at),
         "sessions": _sessions.count(),
