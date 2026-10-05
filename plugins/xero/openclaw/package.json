@@ -1,6 +1,6 @@
 {
   "name": "@arcforgelabs/openclaw-xero",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "test": "node --test test/native-plugin.test.js",
@@ -21,8 +21,8 @@
       "minGatewayVersion": "2026.9.3"
     },
     "build": {
-      "openclawVersion": "2026.9.3",
-      "pluginSdkVersion": "2026.9.3"
+      "openclawVersion": "2026.9.8",
+      "pluginSdkVersion": "2026.9.8"
     }
   },
   "description": "Unofficial Xero integration for OpenClaw, with bundled read-oriented finance workflows.",
@@ -42,6 +42,7 @@
     "connector",
     "core.js",
     "index.js",
+    "shared-service.js",
     "skills",
     "scripts",
     "openclaw.plugin.json",

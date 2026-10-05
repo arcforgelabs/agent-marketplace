@@ -680,7 +680,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     add_step(report, "mcp_self_test", [str(XERO_MCP), "self-test"])
     add_step(report, "plugin_mcp_self_test", [str(XERO_PLUGIN_MCP), "self-test"])
     add_step(report, "mcp_surface", [str(XERO_MCP), "surface", "--strict"])
-    for harness in ("generic", "claude-desktop", "cursor", "codex"):
+    for harness in ("generic", "claude-desktop", "codex"):
         add_step(report, f"mcp_print_config_{harness}", [str(XERO_MCP), "print-config", "--harness", harness])
     add_step(report, "reconciliation_status", [str(XERO_RECONCILE), "status"])
 

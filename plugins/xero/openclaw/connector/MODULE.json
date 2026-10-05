@@ -56,6 +56,6 @@
   "components": ["plugins/xero", "components/skills/xero", "components/mcp/xero", "connectors/xero/finance-rules", "connectors/xero/reconciliation", "connectors/xero/docs"],
   "inputs": ["Xero OAuth authorization", "local token state", "tenant id", "accounting object requests", "finance-rule files", "optional user-provided CDP endpoint"],
   "outputs": ["Xero API responses", "MCP tool surface", "CLI diagnostics", "finance-rule dry-run and apply reports", "optional reconciliation audit output"],
-  "harness_targets": ["Codex", "Claude Desktop", "Cursor", "OpenClaw", "Claude Code"],
+  "harness_targets": ["Codex", "Claude Desktop", "OpenClaw", "Claude Code"],
   "data_boundary": "Do not commit tokens, client secrets, MFA codes, cookies, browser profiles, tenant-private exports, private organization-specific account mappings, or local credential item names as defaults."
 }

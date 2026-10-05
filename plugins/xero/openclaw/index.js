@@ -19,6 +19,12 @@ const plugin = defineToolPlugin({
       commandTimeoutMs: Type.Optional(
         Type.Integer({ minimum: 1000, maximum: 120000, default: 30000 }),
       ),
+      sharedServiceAutoStart: Type.Optional(
+        Type.Boolean({
+          default: true,
+          description: "Start a gateway-owned shared Xero MCP server when none answers on 127.0.0.1:8796.",
+        }),
+      ),
     },
     { additionalProperties: false },
   ),
