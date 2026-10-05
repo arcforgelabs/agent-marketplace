@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { SHARED_HEALTH_URL, createSharedService, probeSharedService } from "./shared-service.js";
+
 const PLUGIN_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLED_CONNECTOR_ROOT = path.join(PLUGIN_ROOT, "connector");
 const REPOSITORY_CONNECTOR_ROOT = path.resolve(PLUGIN_ROOT, "../../connectors/xero");
@@ -116,6 +118,7 @@ export async function readStatus(config = {}) {
     execJson(paths.workflows, ["self-test"], { cwd: paths.root, timeoutMs }),
   ]);
   const checks = { doctor, auth, profiles, rate, lock, mcp, workflows };
+  const shared = await probeSharedService();
   return {
     ok: Object.values(checks).every((check) => check.ok),
     mode: "xero-openclaw-status",
@@ -123,6 +126,13 @@ export async function readStatus(config = {}) {
     mutation: false,
     connectorRoot: paths.root,
     checks,
+    sharedService: {
+      url: SHARED_HEALTH_URL,
+      running: Boolean(shared),
+      status: shared?.status || "down",
+      sessions: shared?.sessions ?? null,
+      backends: shared?.backends?.map(({ label, status, restarts }) => ({ label, status, restarts })) ?? [],
+    },
   };
 }
 
@@ -337,6 +347,15 @@ export default {
     const config = api.pluginConfig || {};
     registerGateway(api, config);
     registerCli(api, config);
+    if (typeof api.registerService === "function") {
+      api.registerService(
+        createSharedService({
+          connectorRoot: connectorRoot(config),
+          env: childEnvironment(),
+          autoStart: config.sharedServiceAutoStart !== false,
+        }),
+      );
+    }
     api.registerHttpRoute({
       path: "/xero/oauth/callback",
       auth: "plugin",

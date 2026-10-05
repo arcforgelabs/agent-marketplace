@@ -5,7 +5,11 @@
 The package includes the public client ID. Approved installations run
 `xero auth login --print-url`, receiving a short connect.arcforge.au link.
 An operator provisions `~/.config/arc-forge-tools/xero/connect-credential`
-(mode 0600). This private installation credential is not a Xero client secret.
+(mode 0600) for the user that runs the agent. This private installation
+credential is not a Xero client secret. Operators issue and enrol it with the
+gateway procedure in `services/xero-connect/README.md` ("Issuing an
+installation approval"). Until then, login fails with "This installation needs
+Arc Forge connection approval".
 No inbound callback port, tunnel, or customer-specific URI is needed.
 Link lifetime: ten minutes; a new attempt replaces the old link.
 Verify token exchange and `xero smoke organisation` before reporting success.
@@ -120,14 +124,15 @@ connectors/xero/mcp/xero-mcp-local surface
 connectors/xero/mcp/xero-mcp-local protocol-smoke --strict
 connectors/xero/mcp/xero-workflows-mcp self-test
 connectors/xero/mcp/xero-mcp-local print-config --harness claude-desktop
-connectors/xero/mcp/xero-mcp-local print-config --harness cursor
 connectors/xero/mcp/xero-mcp-local print-config --harness codex
 connectors/xero/mcp/xero-mcp-local print-config --harness generic
 ```
 
 Then place the returned snippet in the harness's MCP config location.
 
-The single public `xero` MCP server is an aggregator that proxies two backends:
+The single public `xero` MCP server is an aggregator that proxies two backends
+(stdio per client by default; one shared HTTP server with `serve`, see
+[Shared MCP Service](#shared-mcp-service)):
 
 - `xero-official`: the patched official Xero MCP package.
 - `xero-workflows`: local finance-rule, audit, document action, API
@@ -164,6 +169,79 @@ invoke a Xero API tool, so it should not consume Xero API rate limit budget.
 
 `xero-workflows-mcp self-test` validates the local companion MCP tool catalog
 without contacting Xero.
+
+## Shared MCP Service
+
+`xero-mcp serve` runs the same aggregator as one long-lived streamable-HTTP
+server. Every MCP client shares its one backend chain: the official Node server
+plus the workflows companion, per business. Without it, each client starts its
+own stdio chain. Use the shared server wherever many agent sessions run at
+once, such as an OpenClaw Gateway.
+
+```bash
+connectors/xero/mcp/xero-mcp serve                  # 127.0.0.1:8796, loopback only
+connectors/xero/mcp/xero-mcp health                 # exit 0 when every backend is up
+curl -s http://127.0.0.1:8796/healthz               # same JSON; no secrets
+```
+
+- Transport: MCP Streamable HTTP at `/mcp`. `initialize` returns an
+  `Mcp-Session-Id`; later requests must send it. The server answers with JSON
+  and has no server-push stream, so `GET /mcp` returns 405. `DELETE /mcp` ends
+  a session. A session ID the server does not know, for example after a
+  service restart, is adopted rather than rejected.
+- Binding is 127.0.0.1 or ::1 only. `Host` and `Origin` must be loopback.
+- Backend calls are multiplexed: many sessions can have calls in flight at
+  once, up to `ARC_FORGE_XERO_MCP_MAX_INFLIGHT` per backend (default 8). Each
+  reply is routed to the request that asked for it.
+- A crashed backend is restarted with backoff. Its tools stay listed in the
+  meantime, and a call made during the restart returns a clear error.
+- OAuth refresh, the encrypted token store and rate governance are unchanged.
+  Refresh is serialised by the store's cross-process guard, so many sessions
+  produce one refresh. Token environment variables are stripped at startup.
+- Port: `--port` or `ARC_FORGE_XERO_MCP_PORT`. The OpenClaw plugin expects
+  `8796`.
+
+### OpenClaw Gateway
+
+The OpenClaw plugin (0.4+) declares `mcpServers.xero` as
+`{"transport": "streamable-http", "url": "http://127.0.0.1:8796/mcp"}` and
+owns the server through a plugin background service. At Gateway start the
+service probes `/healthz`. If nothing answers, it starts
+`xero-mcp serve --exit-with-parent`, restarts it if it crashes, and stops it
+with the Gateway. No separate unit is needed, and the server follows plugin
+updates after a Gateway restart. Managed plugin installs live in versioned
+directories, so a unit file pointing at one goes stale on update. The plugin
+stands down when another healthy server already holds the port. Set
+`sharedServiceAutoStart: false` in the plugin config to require an external
+server.
+
+Recommended Gateway safety net for any remaining stdio MCP servers:
+
+```bash
+openclaw config set mcp.sessionIdleTtlMs 600000
+```
+
+### systemd user unit (workstations, or external ownership)
+
+```bash
+connectors/xero/mcp/xero-mcp service print          # review the unit
+connectors/xero/mcp/xero-mcp service install        # write, enable and start
+connectors/xero/mcp/xero-mcp service uninstall
+journalctl --user -u arc-forge-xero-mcp -f
+```
+
+The unit runs `serve` as the current user with that user's token store. It
+pins the `node`/`npm`/`python3` directories found at install time on `PATH`,
+unsets token variables, sets `MemoryMax=768M`, and restarts on failure. Re-run
+`service install` after moving or updating the connector. A user unit that must
+run without a login session needs `loginctl enable-linger <user>`.
+
+### Stdio fallback
+
+Harnesses with no shared service, such as Codex and Claude Desktop, keep using
+stdio: `connectors/xero/mcp/xero-mcp run`, or
+`plugins/xero/scripts/run-xero-mcp`. On OpenClaw, an operator can force stdio
+with an `mcp.servers.xero` override. That brings back one chain per session.
 
 ## Codex Plugin Package
 

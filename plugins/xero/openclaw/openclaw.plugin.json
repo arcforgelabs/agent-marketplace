@@ -2,7 +2,7 @@
   "id": "arcforgelabs-xero",
   "name": "Xero",
   "description": "Native OpenClaw Gateway bridge for the Arc Forge Xero connector.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "skills": [
     "./skills"
   ],
@@ -21,9 +21,10 @@
   ],
   "mcpServers": {
     "xero": {
-      "transport": "stdio",
-      "command": "./scripts/run-xero-mcp",
-      "args": []
+      "transport": "streamable-http",
+      "url": "http://127.0.0.1:8796/mcp",
+      "supportsParallelToolCalls": true,
+      "requestTimeoutMs": 130000
     }
   },
   "dashboard": {
@@ -58,6 +59,11 @@
         "minimum": 1000,
         "maximum": 120000,
         "default": 30000
+      },
+      "sharedServiceAutoStart": {
+        "type": "boolean",
+        "default": true,
+        "description": "Start a gateway-owned shared Xero MCP server when none answers on 127.0.0.1:8796."
       }
     },
     "additionalProperties": false
@@ -68,5 +74,24 @@
       "xero_evidence_attachments",
       "xero_evidence_audit"
     ]
+  },
+  "toolMetadata": {
+    "xero_status": {
+      "replaySafe": true,
+      "sideEffecting": false,
+      "profiles": [
+        "coding",
+        "messaging",
+        "full"
+      ]
+    },
+    "xero_evidence_attachments": {
+      "replaySafe": false,
+      "sideEffecting": true
+    },
+    "xero_evidence_audit": {
+      "replaySafe": false,
+      "sideEffecting": true
+    }
   }
 }

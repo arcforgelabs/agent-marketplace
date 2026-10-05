@@ -1172,7 +1172,11 @@ def command_run(args: argparse.Namespace) -> int:
     root = cache_root(args.cache)
     target = ensure_official_package(root=root, version=args.version, force=args.force)
     env = build_env(args)
-    return subprocess.run(["node", str(target / "dist" / "index.js")], env=env, cwd=REPO_ROOT, check=False).returncode
+    # Replace this process with node rather than waiting on it: a Python parent
+    # idling for the child's whole life is one more resident process per chain.
+    os.chdir(REPO_ROOT)
+    os.execvpe("node", ["node", str(target / "dist" / "index.js")], env)
+    return 1  # unreachable: execvpe only returns by raising
 
 
 def command_print_config(args: argparse.Namespace) -> int:
@@ -1182,7 +1186,7 @@ def command_print_config(args: argparse.Namespace) -> int:
         "command": str(MODULE_ROOT / "mcp" / "xero-mcp"),
         "args": ["run"],
     }
-    if args.harness in {"claude-desktop", "cursor"}:
+    if args.harness == "claude-desktop":
         config: dict[str, Any] = {"mcpServers": {"xero": aggregator_config}}
     elif args.harness == "codex":
         config = {
@@ -1733,7 +1737,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_cmd = sub.add_parser("run", help="Run patched official MCP over stdio")
     run_cmd.set_defaults(func=command_run)
     config = sub.add_parser("print-config", help="Print MCP config snippet")
-    config.add_argument("--harness", choices=["generic", "claude-desktop", "cursor", "codex"], default="generic")
+    config.add_argument("--harness", choices=["generic", "claude-desktop", "codex"], default="generic")
     config.set_defaults(func=command_print_config)
     status = sub.add_parser("status", help="Inspect local MCP package/cache readiness without network")
     status.add_argument("--strict", action="store_true", help="Exit non-zero unless the cached package is ready to run")

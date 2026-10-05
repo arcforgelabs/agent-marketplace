@@ -14,7 +14,7 @@ reconciliation finalization.
 
 ## Users
 
-- Local finance operator using Codex, Claude Desktop, Cursor, or CLI.
+- Local finance operator using Codex, Claude Desktop, or CLI.
 - Developer building finance-ops workflows on top of Xero.
 - Agent performing full-power Xero API reads/writes for an authenticated local
   operator.
@@ -54,7 +54,6 @@ reconciliation finalization.
 | --- | --- | --- |
 | Codex | `prototype` | Repo-local plugin package with MCP + CLI + optional CDP finalizer exists. |
 | Claude Desktop | `prototype` | `xero-mcp-local print-config --harness claude-desktop` emits local wrapper config. |
-| Cursor | `prototype` | `xero-mcp-local print-config --harness cursor` emits local wrapper config. |
 | OpenClaw | `prototype` | Reusable CLI/MCP surfaces exist; live tenant proof remains pending. |
 | Claude Code | `prototype-source` | Existing Python MCP source was built for Claude Code and remains prior art. |
 
@@ -108,7 +107,7 @@ rate-govern full-power operations instead.
   smoke and broader live write flows are still planned.
 - `[prototype]` Install docs, OAuth/MFA docs, limits docs, workflow playbooks,
   harness-specific MCP config snippets for generic JSON, Claude Desktop,
-  Cursor, and Codex, and a dated official-docs freshness manifest exist.
+  and Codex, and a dated official-docs freshness manifest exist.
 - `[prototype]` Repo-local Codex plugin scaffold exists at `plugins/xero` with
   `.codex-plugin/plugin.json`, `.mcp.json`, and plugin skill shim.
 - `[prototype]` CDP reconciliation companion exists and refuses to run
