@@ -25,12 +25,14 @@ import time
 from pathlib import Path
 from typing import Any
 
+import xero_version
+
 
 MODULE_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = MODULE_ROOT.parents[1]
 LOCAL_XERO_CLI = MODULE_ROOT / "cli" / "xero"
-DEFAULT_PACKAGE = "@xeroapi/xero-mcp-server"
-DEFAULT_VERSION = "0.0.17"
+DEFAULT_PACKAGE = xero_version.OFFICIAL_PACKAGE
+DEFAULT_VERSION = xero_version.OFFICIAL_PACKAGE_VERSION
 DEFAULT_CACHE_ROOT = Path.home() / ".cache" / "arc-forge-tools" / "xero-mcp"
 DEFAULT_RATE_LIMIT_PATH = Path.home() / ".config" / "arc-forge-tools" / "xero" / "rate-limit-status.json"
 DEFAULT_SHARED_RATE_LIMIT_PATH = Path.home() / ".config" / "arc-forge-tools" / "xero" / "rate-limit-shared.json"
@@ -1533,7 +1535,7 @@ def run_protocol_smoke(args: argparse.Namespace) -> dict[str, Any]:
                 {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "xero-mcp-local-smoke", "version": "0.1.0"},
+                    "clientInfo": {"name": "xero-mcp-local-smoke", "version": xero_version.release_version()},
                 },
             ),
         )
@@ -1622,7 +1624,7 @@ def run_live_tool_smoke(args: argparse.Namespace) -> dict[str, Any]:
                 {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "xero-mcp-local-live-smoke", "version": "0.1.0"},
+                    "clientInfo": {"name": "xero-mcp-local-live-smoke", "version": xero_version.release_version()},
                 },
             ),
         )
