@@ -104,6 +104,12 @@ connectors/xero/scripts/validate-xero --live-api
 the organisation, and grants consent. The CLI captures only the localhost OAuth
 callback and writes local token state.
 
+An installation holds one Xero connection and acts on one pinned organisation.
+If the grant covers exactly one organisation, login pins it. If it covers
+several and nothing is pinned yet, login pins none and every API call refuses
+until `xero tenants use <tenant-id>` names the one organisation. No command
+falls back to another organisation.
+
 Token writes are atomic and keep a local `0600` backup of the previous token
 store at `tokens.json.bak`. `xero auth status` reports whether that backup
 exists without printing token material.
@@ -193,6 +199,22 @@ curl -s http://127.0.0.1:8796/healthz               # same JSON; no secrets
 - Backend calls are multiplexed: many sessions can have calls in flight at
   once, up to `ARC_FORGE_XERO_MCP_MAX_INFLIGHT` per backend (default 8). Each
   reply is routed to the request that asked for it.
+- The backend chain starts with the server, not on the first request, and its
+  two backends start in parallel. `initialize` never waits for them.
+- `tools/list` is served from the tool catalogue, never from a backend round
+  trip. The catalogue is each backend's live tool list once it is up, and
+  until then the last one cached in
+  `~/.config/arc-forge-tools/xero/mcp-catalog.json` (override:
+  `ARC_FORGE_XERO_MCP_CATALOG`). The file is rewritten whenever a backend
+  (re)starts with a different list, and ignored after a release or a change to
+  the pinned official package. With no usable cache, the first start after an
+  install or upgrade, `tools/list` waits up to
+  `ARC_FORGE_XERO_MCP_COLD_LIST_WAIT` seconds (default 8) for the backends and
+  then answers with what it has. `/healthz` shows each backend's `catalog`
+  source: `live`, `cache` or `none`.
+- A `tools/call` that arrives before its backend is up waits for it. A call
+  waits at most 120 s for its backend, including any queue on the FIFO
+  operation lock, then returns a clear error.
 - A crashed backend is restarted with backoff. Its tools stay listed in the
   meantime, and a call made during the restart returns a clear error.
 - OAuth refresh, the encrypted token store and rate governance are unchanged.
@@ -214,6 +236,15 @@ directories, so a unit file pointing at one goes stale on update. The plugin
 stands down when another healthy server already holds the port. Set
 `sharedServiceAutoStart: false` in the plugin config to require an external
 server.
+
+Timeouts: OpenClaw 9.8 gives an MCP server two settings. `connectionTimeoutMs`
+bounds `initialize` (default 30 s); the plugin sets 5 s, so a wedged server
+costs a new session 5 s at most. `requestTimeoutMs` bounds every request,
+tool calls included. When it is set, OpenClaw also uses it as the session-start
+tool-listing timeout; unset, listing gets 10 s and calls 60 s. There is no
+separate list or call timeout, so the plugin keeps `requestTimeoutMs: 130000`
+for calls queued on the operation lock. Listing answers from the cached
+catalogue in milliseconds, so it never uses that budget.
 
 Recommended Gateway safety net for any remaining stdio MCP servers:
 

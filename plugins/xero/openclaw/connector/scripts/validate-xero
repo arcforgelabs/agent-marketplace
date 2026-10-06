@@ -14,7 +14,6 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -28,7 +27,7 @@ XERO_MCP = MODULE_ROOT / "mcp" / "xero-mcp-local"
 XERO_PLUGIN_MCP = MODULE_ROOT / "mcp" / "xero-workflows-mcp"
 XERO_RECONCILE = MODULE_ROOT / "reconciliation" / "xero-reconcile"
 TESTS = MODULE_ROOT / "tests" / "test_xero_core.py"
-TESTS_PROFILES = MODULE_ROOT / "tests" / "test_xero_profiles.py"
+TESTS_SINGLE_CONNECTION = MODULE_ROOT / "tests" / "test_xero_single_connection.py"
 RULES = MODULE_ROOT / "finance-rules" / "templates" / "default-rules.json"
 OFFICIAL_DOCS = MODULE_ROOT / "docs" / "official-docs.json"
 INSTALLER = REPO_ROOT / "plugins" / "xero" / "scripts" / "install-xero-plugin"
@@ -133,14 +132,14 @@ ARCHITECTURE_REQUIREMENTS: list[dict[str, Any]] = [
         ],
     },
     {
-        "id": "multi_business_profile_isolation",
-        "area": "multi-business",
-        "description": "Per-business profile registry isolates token stores and namespaces aggregator tools so writes cannot cross legal entities.",
+        "id": "single_connection_tenant_pin",
+        "area": "single-connection",
+        "description": "One Xero connection per agent: one token store, every API call on its pinned organisation, no fallback tenant, and leftover multi-business state refused.",
         "paths": [
-            "connectors/xero/scripts/xero_profiles.py",
+            "connectors/xero/scripts/xero_single_connection.py",
+            "connectors/xero/scripts/xero_core.py",
             "connectors/xero/scripts/xero_mcp.py",
-            "connectors/xero/tests/test_xero_profiles.py",
-            "connectors/xero/docs/multi-business.md",
+            "connectors/xero/tests/test_xero_single_connection.py",
         ],
     },
     {
@@ -608,22 +607,22 @@ def build_architecture_coverage(report: dict[str, Any]) -> dict[str, Any]:
             and {"accept-suggestion", "create", "match", "transfer"}.issubset(set(reconcile_actions))
         ),
         "plugin_install_docs_and_skill": bool(step_payload(report, "plugin_validate") or (PLUGIN / ".codex-plugin" / "plugin.json").exists()),
-        "multi_business_profile_isolation": bool(
+        "single_connection_tenant_pin": bool(
             file_contains(
-                "connectors/xero/scripts/xero_profiles.py",
-                ["BUSINESS_FIELDS", "SHARED_FIELDS", "def resolve_active_profile", "def assign_prefixes"],
+                "connectors/xero/scripts/xero_single_connection.py",
+                ["def assert_single_connection", "RETIRED_REGISTRY"],
+            )
+            and file_contains(
+                "connectors/xero/scripts/xero_core.py",
+                ["def resolve_tenant_id", "def select_active_tenant", "assert_single_connection()"],
             )
             and file_contains(
                 "connectors/xero/scripts/xero_mcp.py",
-                ["def _plan_businesses", "def _public_name", "env_overlay"],
+                ["assert_single_connection()", "_refusal"],
             )
             and file_contains(
-                "connectors/xero/tests/test_xero_profiles.py",
-                ["test_aggregator_multi_business_prefixes_and_routes", "test_resolve_paths_isolation_and_sharing"],
-            )
-            and file_contains(
-                "connectors/xero/docs/multi-business.md",
-                ["per business", "token store", "namespaces"],
+                "connectors/xero/tests/test_xero_single_connection.py",
+                ["test_login_never_picks_from_several_organisations", "test_resolve_tenant_refuses_other_organisation"],
             )
         ),
     }
@@ -669,7 +668,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     }
 
     add_step(report, "python_tests", ["python3", str(TESTS)])
-    add_step(report, "python_tests_profiles", ["python3", str(TESTS_PROFILES)])
+    add_step(report, "python_tests_single_connection", ["python3", str(TESTS_SINGLE_CONNECTION)])
     add_step(report, "installer_syntax", ["bash", "-n", str(INSTALLER)])
     add_step(report, "doctor_local", [str(XERO_CLI), "doctor"])
     add_step(report, "auth_app_config", [str(XERO_CLI), "auth", "app-config"])
@@ -771,13 +770,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expected", help="Expected reconciliation JSON for optional CDP dry-run matching")
     parser.add_argument("--out-dir", help="Override smoke artifact directory for live smoke")
     args = parser.parse_args(argv)
-    # Run the gate against the deterministic no-registry (single legacy) baseline
-    # so a real multi-business registry on the machine can't change tool names or
-    # pinned stores in the CLI/MCP subprocess steps. Multi-business behaviour is
-    # validated separately by tests/test_xero_profiles.py.
-    os.environ["ARC_FORGE_XERO_BUSINESS_REGISTRY"] = str(
-        Path(tempfile.mkdtemp(prefix="validate-xero-")) / "absent-businesses.json"
-    )
     report = build_report(args)
     print(json.dumps(report, indent=2, sort_keys=False))
     return 0 if report["ok"] else 1
