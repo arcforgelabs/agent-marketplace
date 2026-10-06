@@ -44,7 +44,7 @@ import xero_ingestion
 import xero_operation_lock
 import xero_payroll
 import xero_exports
-import xero_profiles
+import xero_single_connection
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
@@ -284,12 +284,12 @@ SCOPE_BUNDLES: dict[str, frozenset[str]] = {
     # that still carry broad-scope journal access.  Granular-scope connections
     # (created on/after 29 April 2026) have no journals granular replacement and
     # will receive Xero `invalid_scope` / HTTP 401 if this bundle is requested.
-    # Use: `xero --profile <p> auth login --add journals-broad`
+    # Use: `xero auth login --add journals-broad`
     "journals-broad": frozenset(["accounting.journals.read"]),
     # Read-only Budget Manager access (powers the `xero budgets` read commands).
     # Already part of DEFAULT_SCOPE, but catalogued as a bundle so an existing
     # connection can opt in without re-requesting everything:
-    # `xero --profile <p> auth login --add budgets-read`. Xero exposes budgets
+    # `xero auth login --add budgets-read`. Xero exposes budgets
     # as READ-ONLY (GET only); there is no create/update budget API.
     "budgets-read": frozenset(["accounting.budgets.read"]),
     # Read-only AU Payroll access (powers the `xero payroll` read commands).
@@ -1596,8 +1596,7 @@ def command_auth_login(args: argparse.Namespace) -> int:
     payload = merge_token_response(store.load(), token_response, client_id=client_id)
     connections = fetch_connections(str(payload.get("access_token") or ""))
     payload["tenants"] = connections
-    if connections and not payload.get("active_tenant_id"):
-        payload["active_tenant_id"] = connections[0].get("tenantId")
+    selection = select_active_tenant(payload, connections)
     store.save(payload)
     store_info = store.describe()
     write_json(
@@ -1608,6 +1607,7 @@ def command_auth_login(args: argparse.Namespace) -> int:
             "token_store_mode": store_info["mode"],
             "tenant_count": len(connections),
             "active_tenant_id": payload.get("active_tenant_id"),
+            **selection,
         }
     )
     return 0
@@ -1686,13 +1686,88 @@ def command_auth_migrate_store(args: argparse.Namespace) -> int:
     return 0
 
 
+NO_ACTIVE_TENANT_MESSAGE = (
+    "No Xero organisation is pinned for this connection. Run `xero tenants list --refresh`, "
+    "then `xero tenants use <tenant-id>` for the one organisation this agent works on."
+)
+
+
+def _connection_tenant_ids(tenants: Any) -> list[str]:
+    if not isinstance(tenants, list):
+        return []
+    return [str(item.get("tenantId")) for item in tenants if isinstance(item, dict) and item.get("tenantId")]
+
+
+def select_active_tenant(payload: dict[str, Any], connections: Any) -> dict[str, Any]:
+    """Keep the pinned organisation, or pin the only one; never guess.
+
+    A Xero grant can authorise several organisations, but this connector acts
+    on exactly one. An existing pin that is still authorised is kept. With no
+    pin, a grant covering exactly one organisation is pinned to it. Anything
+    else (several organisations and no pin, or a pin that is no longer
+    authorised) leaves the connection unpinned so every API call refuses until
+    an operator runs `xero tenants use <tenant-id>`.
+    """
+    ids = _connection_tenant_ids(connections)
+    current = str(payload.get("active_tenant_id") or "")
+    note: dict[str, Any] = {"tenant_selection_required": False}
+    if current and current in ids:
+        return note
+    if current:
+        payload["active_tenant_id"] = None
+        note.update(
+            tenant_selection_required=True,
+            previous_tenant_id=current,
+            tenant_selection_message=(
+                f"The pinned organisation {current} is no longer authorised on this connection. "
+                "It was unpinned rather than replaced. " + NO_ACTIVE_TENANT_MESSAGE
+            ),
+        )
+        return note
+    if len(ids) == 1:
+        payload["active_tenant_id"] = ids[0]
+        return note
+    if len(ids) > 1:
+        note.update(
+            tenant_selection_required=True,
+            tenant_selection_message=(
+                f"This grant authorises {len(ids)} organisations and none is pinned. "
+                "The connector will not pick one. " + NO_ACTIVE_TENANT_MESSAGE
+            ),
+        )
+    return note
+
+
+def resolve_tenant_id(payload: dict[str, Any], requested: str | None = None) -> str:
+    """Return the connection's pinned organisation, refusing anything else.
+
+    There is no fallback: no pin, a pin that is no longer in the stored
+    connection list, or a requested tenant id that differs from the pin all
+    raise instead of acting on another organisation.
+    """
+    active = str(payload.get("active_tenant_id") or "").strip()
+    if not active:
+        raise XeroCliError(NO_ACTIVE_TENANT_MESSAGE)
+    ids = _connection_tenant_ids(payload.get("tenants"))
+    if ids and active not in ids:
+        raise XeroCliError(
+            f"The pinned organisation {active} is not in this connection's authorised organisations. "
+            "Refusing rather than using another one. " + NO_ACTIVE_TENANT_MESSAGE
+        )
+    requested = str(requested or "").strip()
+    if requested and requested != active:
+        raise XeroCliError(
+            f"Tenant {requested} is not this connection's pinned organisation ({active}). "
+            "One connection acts on one organisation; change the pin with `xero tenants use <tenant-id>` "
+            "if the operator intends to switch."
+        )
+    return active
+
+
 def command_auth_token(args: argparse.Namespace) -> int:
     store = TokenStore(token_store_path(args.store))
     payload = ensure_access_token(store)
-    tenant_id = args.tenant_id or str(payload.get("active_tenant_id") or "")
-    if not tenant_id:
-        raise XeroCliError("No active tenant selected. Run `xero tenants list --refresh` then `xero tenants use <tenant-id>`.")
-    assert_pinned_tenant(tenant_id)
+    tenant_id = resolve_tenant_id(payload, args.tenant_id)
     access_token = str(payload.get("access_token") or "")
     if not access_token:
         raise XeroCliError("No access token is available after refresh.")
@@ -1711,17 +1786,18 @@ def command_tenants_list(args: argparse.Namespace) -> int:
     store = TokenStore(token_store_path(args.store))
     payload = ensure_access_token(store) if args.refresh else store.load()
     tenants = payload.get("tenants")
+    selection: dict[str, Any] = {}
     if args.refresh or not isinstance(tenants, list):
         payload = ensure_access_token(store)
         tenants = fetch_connections(str(payload.get("access_token") or ""))
         payload["tenants"] = tenants
-        if tenants and not payload.get("active_tenant_id"):
-            payload["active_tenant_id"] = tenants[0].get("tenantId")
+        selection = select_active_tenant(payload, tenants)
         store.save(payload)
     write_json(
         {
             "active_tenant_id": payload.get("active_tenant_id"),
             "tenants": tenants or [],
+            **selection,
         }
     )
     return 0
@@ -1740,150 +1816,10 @@ def command_tenants_use(args: argparse.Namespace) -> int:
     return 0
 
 
-def _profile_token_summary(profile: xero_profiles.Profile) -> dict[str, Any]:
-    """Best-effort read of a business's token store for `profiles` output.
-
-    Pins the profile's env (notably the token-store key path) for the read.
-    Without this an additional business — encrypted under the shared key but
-    stored at a non-default path — would resolve a non-existent business-local
-    key, causing `load_fernet` to write a stray key file and fail decryption.
-    The env is always restored so callers iterating several profiles are unaffected.
-    """
-    summary: dict[str, Any] = {"token_store_exists": profile.paths["token_store"].exists()}
-    if not summary["token_store_exists"]:
-        return summary
-    saved = {key: os.environ.get(key) for key in profile.env()}
-    os.environ.update(profile.env())
-    try:
-        payload = TokenStore(profile.paths["token_store"]).load()
-    except Exception as exc:  # pragma: no cover - corrupt/locked store
-        summary["error"] = str(exc)
-        return summary
-    finally:
-        for key, value in saved.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
-    tenants = payload.get("tenants") if isinstance(payload.get("tenants"), list) else []
-    summary["active_tenant_id"] = payload.get("active_tenant_id")
-    summary["tenant_count"] = len(tenants)
-    summary["tenant_names"] = [
-        t.get("tenantName") for t in tenants if isinstance(t, dict) and t.get("tenantName")
-    ]
-    return summary
-
-
-def command_profiles_list(args: argparse.Namespace) -> int:
-    registry = xero_profiles.load_registry()
-    if registry is None:
-        profile = xero_profiles.implicit_default_profile()
-        write_json(
-            {
-                "registry": None,
-                "note": "No business registry; operating the single legacy default business.",
-                "businesses": [{**profile.to_summary(), **_profile_token_summary(profile)}],
-            }
-        )
-        return 0
-    active = None
-    try:
-        active = xero_profiles.resolve_active_profile(getattr(args, "profile", None)).key
-    except xero_profiles.ProfileError:
-        active = None
-    write_json(
-        {
-            "registry": str(registry.path),
-            "active": active,
-            "businesses": [
-                {
-                    **p.to_summary(),
-                    "active": p.key == active,
-                    **_profile_token_summary(p),
-                }
-                for p in registry.profiles
-            ],
-        }
-    )
-    return 0
-
-
-def command_profiles_show(args: argparse.Namespace) -> int:
-    profile = xero_profiles.resolve_active_profile(getattr(args, "profile", None))
-    write_json(
-        {
-            **profile.to_summary(),
-            "env": profile.env(),
-            **_profile_token_summary(profile),
-        }
-    )
-    return 0
-
-
-def command_profiles_add(args: argparse.Namespace) -> int:
-    _registry, profile = xero_profiles.upsert_business(
-        key=args.key,
-        label=args.label,
-        legacy=args.legacy,
-        root=args.root,
-        profile_pack=args.profile_pack,
-    )
-    write_json({"ok": True, "business": profile.to_summary()})
-    return 0
-
-
-def command_profiles_remove(args: argparse.Namespace) -> int:
-    _registry, profile = xero_profiles.remove_business(args.key)
-    write_json(
-        {
-            "ok": True,
-            "removed": profile.key,
-            "note": "Registry entry removed; token files on disk were left untouched.",
-            "token_store": str(profile.paths["token_store"]),
-        }
-    )
-    return 0
-
-
-def command_profiles_pin_tenant(args: argparse.Namespace) -> int:
-    """Record the business's current active tenant as its expected (pinned) org.
-
-    Future token mints / API calls for this profile then assert the active
-    tenant matches — a misroute to another org is refused (see assert_pinned_tenant).
-    """
-    profile = xero_profiles.resolve_active_profile(getattr(args, "profile", None))
-    registry = xero_profiles.load_registry()
-    if registry is None or registry.get(profile.key) is None:
-        raise XeroCliError(
-            "pin-tenant requires a registered business; run `xero profiles add` first."
-        )
-    pin = args.tenant_id
-    if not pin:
-        summary = _profile_token_summary(profile)  # reads store with key pinned
-        pin = summary.get("active_tenant_id")
-    if not pin:
-        raise XeroCliError(
-            f"Business {profile.key!r} has no active tenant to pin. Connect it and run "
-            f"`xero --profile {profile.key} tenants use <tenant-id>` first."
-        )
-    xero_profiles.upsert_business(key=profile.key, legacy=profile.legacy, tenant_id=str(pin))
-    write_json(
-        {
-            "ok": True,
-            "key": profile.key,
-            "pinned_tenant_id": pin,
-            "note": "Future operations on this profile assert the active tenant matches this id.",
-        }
-    )
-    return 0
-
-
 def command_smoke_organisation(args: argparse.Namespace) -> int:
     store = TokenStore(token_store_path(args.store))
     payload = ensure_access_token(store)
-    tenant_id = args.tenant_id or str(payload.get("active_tenant_id") or "")
-    if not tenant_id:
-        raise XeroCliError("No active tenant selected. Run `xero tenants list --refresh` then `xero tenants use <tenant-id>`.")
+    tenant_id = resolve_tenant_id(payload, args.tenant_id)
     response = http_get_json(
         f"{ACCOUNTING_API_BASE}/Organisation",
         {
@@ -1899,9 +1835,7 @@ def command_smoke_organisation(args: argparse.Namespace) -> int:
 def command_smoke_accounts(args: argparse.Namespace) -> int:
     store = TokenStore(token_store_path(args.store))
     payload = ensure_access_token(store)
-    tenant_id = args.tenant_id or str(payload.get("active_tenant_id") or "")
-    if not tenant_id:
-        raise XeroCliError("No active tenant selected. Run `xero tenants list --refresh` then `xero tenants use <tenant-id>`.")
+    tenant_id = resolve_tenant_id(payload, args.tenant_id)
     response = http_get_json(
         f"{ACCOUNTING_API_BASE}/Accounts",
         {
@@ -2152,16 +2086,24 @@ def build_doctor_report(args: argparse.Namespace) -> dict[str, Any]:
     tenants = token_payload.get("tenants")
     tenant_count = len(tenants) if isinstance(tenants, list) else 0
     active_tenant = str(token_payload.get("active_tenant_id") or "")
+    tenant_ids = _connection_tenant_ids(tenants)
+    active_authorised = bool(active_tenant) and (not tenant_ids or active_tenant in tenant_ids)
+    if not active_tenant:
+        active_detail = "No organisation pinned."
+    elif not active_authorised:
+        active_detail = f"Pinned organisation {active_tenant} is not in the stored connection list."
+    else:
+        active_detail = active_tenant
     checks.append(
         doctor_check(
             "active_tenant",
-            bool(active_tenant),
+            active_authorised,
             "auth",
-            active_tenant or "No active tenant selected.",
+            active_detail,
             tenant_count=tenant_count,
         )
     )
-    if token_exists and not active_tenant:
+    if token_exists and not active_authorised:
         next_steps.append("Run `xero tenants list --refresh` and `xero tenants use <tenant-id>`.")
 
     rate_path = rate_limit_store_path(args.rate_store)
@@ -2329,10 +2271,7 @@ def accounting_headers(payload: dict[str, Any], tenant_id: str) -> dict[str, str
 def resolve_active_auth(args: argparse.Namespace) -> tuple[dict[str, Any], str]:
     store = TokenStore(token_store_path(args.store))
     payload = ensure_access_token(store)
-    tenant_id = args.tenant_id or str(payload.get("active_tenant_id") or "")
-    if not tenant_id:
-        raise XeroCliError("No active tenant selected. Run `xero tenants list --refresh` then `xero tenants use <tenant-id>`.")
-    assert_pinned_tenant(tenant_id)
+    tenant_id = resolve_tenant_id(payload, args.tenant_id)
     return payload, tenant_id
 
 
@@ -4396,9 +4335,7 @@ def command_audit_check_live(args: argparse.Namespace) -> int:
     config = LIVE_CHECK_KINDS[args.kind]
     store = TokenStore(token_store_path(args.store))
     payload = ensure_access_token(store)
-    tenant_id = args.tenant_id or str(payload.get("active_tenant_id") or "")
-    if not tenant_id:
-        raise XeroCliError("No active tenant selected. Run `xero tenants list --refresh` then `xero tenants use <tenant-id>`.")
+    tenant_id = resolve_tenant_id(payload, args.tenant_id)
     where = live_check_query(args.kind, args.value, field=args.field)
     endpoint = str(config["endpoint"])
     response = http_get_json(
@@ -4457,9 +4394,7 @@ def command_snapshots_fetch(args: argparse.Namespace) -> int:
     config = SNAPSHOT_KINDS[args.kind]
     store = TokenStore(token_store_path(args.store))
     payload = ensure_access_token(store)
-    tenant_id = args.tenant_id or str(payload.get("active_tenant_id") or "")
-    if not tenant_id:
-        raise XeroCliError("No active tenant selected. Run `xero tenants list --refresh` then `xero tenants use <tenant-id>`.")
+    tenant_id = resolve_tenant_id(payload, args.tenant_id)
     endpoint = config["endpoint"]
     headers = {
         "Authorization": f"Bearer {payload.get('access_token')}",
@@ -5415,7 +5350,7 @@ def command_ap_check_unmatched_payments(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Phase 4 — Multi-org onboarding (xero org onboard / org validate)
+# Phase 4 — Profile-pack onboarding (xero org onboard / org validate)
 # ---------------------------------------------------------------------------
 
 # Country compliance modules registry.
@@ -5526,19 +5461,18 @@ def _run_compliance_checks(
 
 
 def command_org_onboard(args: argparse.Namespace) -> int:
-    """Orchestrate multi-org onboarding as a plan + scaffold (dry-run only).
+    """Scaffold this connection's profile pack and print the human steps (no OAuth).
 
     This command:
-      (a) Adds the business to the profiles registry (``xero profiles add``).
-      (b) Prints the exact ``xero auth login`` + ``xero snapshots fetch`` commands
-          the human must run to complete auth + snapshot.
-      (c) Scaffolds the profile-pack directory from the connector templates into
+      (a) Scaffolds the profile-pack directory from the connector templates into
           the target path — company-profile.md stub, ap-policy.json, finance-rules.json
           skeleton, and evidence/inbox/ directory.
-      (d) Reports which files were created vs skipped (idempotent: re-running
+      (b) Prints the exact ``xero auth login`` + ``xero snapshots fetch`` commands
+          the human must run to complete auth + snapshot.
+      (c) Reports which files were created vs skipped (idempotent: re-running
           does NOT clobber an existing filled pack).
 
-    This command is IDEMPOTENT. Re-running it will scaffold only missing files.
+    The connector holds one Xero connection; this command never adds another.
 
     IMPORTANT: This command does NOT perform OAuth. After running this command,
     the human must:
@@ -5547,14 +5481,10 @@ def command_org_onboard(args: argparse.Namespace) -> int:
       3. Run the snapshot commands printed by this command.
       4. Fill in the scaffolded profile pack files with the org's real data.
     """
-    key = args.key.strip()
-    xero_profiles.validate_key(key)
-    label = (args.label or key).strip()
     pack_path = Path(args.pack_path).expanduser().resolve()
+    label = (args.label or pack_path.name).strip()
 
-    # Scaffold the pack FIRST, then write the registry entry. If a scaffold step
-    # raises, we have not left a half-onboarded registry entry behind.
-    # --- (c) Scaffold the pack directory ---
+    # --- (a) Scaffold the pack directory ---
     templates_dir = MODULE_ROOT / "profile-pack" / "templates"
     finance_rules_template = MODULE_ROOT / "finance-rules" / "templates" / "default-rules.json"
 
@@ -5617,40 +5547,31 @@ def command_org_onboard(args: argparse.Namespace) -> int:
     else:
         skipped.append(str(readme))
 
-    # --- (a) Add to registry (after a successful scaffold) ---
-    _registry, profile = xero_profiles.upsert_business(
-        key=key,
-        label=label,
-        profile_pack=str(pack_path),
-    )
-
     # --- (b) Print the commands the human must run ---
     human_steps = [
-        f"xero --profile {key} auth login",
-        f"xero --profile {key} tenants list --refresh",
-        f"xero --profile {key} tenants use <paste-tenant-id-from-above>",
-        f"xero --profile {key} snapshots fetch accounts",
-        f"xero --profile {key} snapshots fetch contacts",
-        f"xero --profile {key} snapshots fetch tax-rates",
-        f"xero --profile {key} snapshots fetch items",
-        f"xero --profile {key} snapshots fetch tracking-categories",
-        f"xero --profile {key} org validate --pack-path {pack_path}",
+        "xero auth login",
+        "xero tenants list --refresh",
+        "xero tenants use <paste-tenant-id-from-above>",
+        "xero snapshots fetch accounts",
+        "xero snapshots fetch contacts",
+        "xero snapshots fetch tax-rates",
+        "xero snapshots fetch items",
+        "xero snapshots fetch tracking-categories",
+        f"xero org validate --pack-path {pack_path}",
     ]
 
     write_json(
         {
             "ok": True,
             "mode": "org-onboard",
-            "key": key,
             "label": label,
             "pack_path": str(pack_path),
-            "profile_paths": {f: str(p) for f, p in profile.paths.items()},
             "scaffolded": scaffolded,
             "skipped_existing": skipped,
             "idempotent": True,
             "human_steps_required": human_steps,
             "message": (
-                "Registry updated and pack scaffolded. "
+                "Pack scaffolded. "
                 "IMPORTANT: Run the human_steps_required commands above to complete onboarding. "
                 "This command did NOT perform OAuth — the human must complete browser login."
             ),
@@ -6242,32 +6163,7 @@ def command_payroll_verify(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="xero", description="Arc Forge local Xero plugin CLI")
     parser.add_argument("--store", help="Override token store path")
-    parser.add_argument(
-        "-p",
-        "--profile",
-        help="Operate on a registered business (see `xero profiles`); defaults to XERO_PROFILE",
-    )
     sub = parser.add_subparsers(dest="command", required=True)
-
-    profiles = sub.add_parser("profiles", help="Manage Xero business profiles (multi-business isolation)")
-    profiles_sub = profiles.add_subparsers(dest="profiles_command", required=True)
-    profiles_list = profiles_sub.add_parser("list", help="List registered businesses and their token-store state")
-    profiles_list.set_defaults(func=command_profiles_list)
-    profiles_show = profiles_sub.add_parser("show", help="Show resolved paths and token state for one business")
-    profiles_show.set_defaults(func=command_profiles_show)
-    profiles_add = profiles_sub.add_parser("add", help="Create or update a business entry in the registry")
-    profiles_add.add_argument("--key", required=True, help="Short slug [a-z0-9-]; also the MCP tool-name prefix")
-    profiles_add.add_argument("--label", help="Human-readable business name")
-    profiles_add.add_argument("--legacy", action="store_true", help="Map this business to the existing legacy default paths")
-    profiles_add.add_argument("--root", help="Override the directory holding this business's isolated state")
-    profiles_add.add_argument("--profile-pack", help="Path to this org's profile pack (company-profile.md + ap-policy.json + finance-rules.json) in the private finances repo")
-    profiles_add.set_defaults(func=command_profiles_add)
-    profiles_remove = profiles_sub.add_parser("remove", help="Remove a business entry (leaves its token files on disk)")
-    profiles_remove.add_argument("--key", required=True, help="Business slug to remove")
-    profiles_remove.set_defaults(func=command_profiles_remove)
-    profiles_pin = profiles_sub.add_parser("pin-tenant", help="Pin the business's expected Xero tenant for identity assertions")
-    profiles_pin.add_argument("--tenant-id", help="Tenant id to pin; defaults to the store's current active tenant")
-    profiles_pin.set_defaults(func=command_profiles_pin_tenant)
 
     doctor = sub.add_parser("doctor", help="Check local Xero plugin readiness without calling Xero")
     doctor.add_argument("--client-id", help="Xero OAuth public client id override for readiness checks")
@@ -6329,7 +6225,7 @@ def build_parser() -> argparse.ArgumentParser:
     migrate_store.set_defaults(func=command_auth_migrate_store)
 
     token = auth_sub.add_parser("token", help="Emit a fresh bearer token for trusted local MCP wrapper processes")
-    token.add_argument("--tenant-id", help="Override active tenant id")
+    token.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     token.set_defaults(func=command_auth_token)
 
     tenants = sub.add_parser("tenants", help="List and select Xero tenants")
@@ -6344,10 +6240,10 @@ def build_parser() -> argparse.ArgumentParser:
     smoke = sub.add_parser("smoke", help="Read-only Xero smoke checks")
     smoke_sub = smoke.add_subparsers(dest="smoke_command", required=True)
     organisation = smoke_sub.add_parser("organisation", help="Read organisation details")
-    organisation.add_argument("--tenant-id", help="Override active tenant id")
+    organisation.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     organisation.set_defaults(func=command_smoke_organisation)
     accounts = smoke_sub.add_parser("accounts", help="Read a capped chart-of-accounts sample")
-    accounts.add_argument("--tenant-id", help="Override active tenant id")
+    accounts.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     accounts.add_argument("--limit", type=int, default=10, help="Maximum accounts to include in output")
     accounts.set_defaults(func=command_smoke_accounts)
 
@@ -6370,7 +6266,7 @@ def build_parser() -> argparse.ArgumentParser:
     reports_sub = reports.add_subparsers(dest="reports_command", required=True)
     reports_get = reports_sub.add_parser("get", help="Fetch a supported Xero Accounting API report")
     reports_get.add_argument("kind", help="Report kind")
-    reports_get.add_argument("--tenant-id", help="Override active tenant id")
+    reports_get.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     reports_get.add_argument("--date", help="Report date, where supported")
     reports_get.add_argument("--from-date", help="Report start date, where supported")
     reports_get.add_argument("--to-date", help="Report end date, where supported")
@@ -6401,7 +6297,7 @@ def build_parser() -> argparse.ArgumentParser:
         "export-pnl-tracking",
         help="Write a normalized P&L-by-tracking-category CSV (one row per account/option) with reconciliation",
     )
-    reports_export.add_argument("--tenant-id", help="Override active tenant id")
+    reports_export.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     reports_export.add_argument("--from-date", required=True, help="Period start (YYYY-MM-DD)")
     reports_export.add_argument("--to-date", required=True, help="Period end (YYYY-MM-DD)")
     reports_export.add_argument(
@@ -6448,14 +6344,14 @@ def build_parser() -> argparse.ArgumentParser:
     budgets_list = budgets_sub.add_parser(
         "list", help="List budgets (BudgetID, Type, Description, UpdatedDateUTC)"
     )
-    budgets_list.add_argument("--tenant-id", help="Override active tenant id")
+    budgets_list.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     budgets_list.add_argument("--ids", help="Comma-separated BudgetIDs to filter the list")
     budgets_list.set_defaults(func=command_budgets_list)
     budgets_get = budgets_sub.add_parser(
         "get", help="Fetch one budget with its per-account, per-period budget lines"
     )
     budgets_get.add_argument("budget_id", help="BudgetID UUID")
-    budgets_get.add_argument("--tenant-id", help="Override active tenant id")
+    budgets_get.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     budgets_get.add_argument("--date-from", help="Period start (YYYY-MM-DD)")
     budgets_get.add_argument("--date-to", help="Period end (YYYY-MM-DD)")
     budgets_get.set_defaults(func=command_budgets_get)
@@ -6466,7 +6362,7 @@ def build_parser() -> argparse.ArgumentParser:
         "export",
         help="Write normalized account-transaction rows from /Journals (revenue +, costs −)",
     )
-    journals_export.add_argument("--tenant-id", help="Override active tenant id")
+    journals_export.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     journals_export.add_argument("--from-date", required=True, help="Period start (YYYY-MM-DD)")
     journals_export.add_argument("--to-date", required=True, help="Period end (YYYY-MM-DD)")
     journals_export.add_argument("--out", required=True, help="Output CSV path")
@@ -6505,7 +6401,7 @@ def build_parser() -> argparse.ArgumentParser:
         "export",
         help="Write normalized payment rows from /Payments (amount positive; ACCREC = cash in, ACCPAY = cash out)",
     )
-    payments_export.add_argument("--tenant-id", help="Override active tenant id")
+    payments_export.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     payments_export.add_argument("--from-date", help="Optional period start (YYYY-MM-DD); omit for all payments")
     payments_export.add_argument("--to-date", help="Optional period end (YYYY-MM-DD); omit for all payments")
     payments_export.add_argument("--out", required=True, help="Output CSV path")
@@ -6529,7 +6425,7 @@ def build_parser() -> argparse.ArgumentParser:
         "export",
         help="Write actual cash in/out from /BankTransactions, one row per line item (direction in/out, account = cash category)",
     )
-    banktx_export.add_argument("--tenant-id", help="Override active tenant id")
+    banktx_export.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     banktx_export.add_argument("--from-date", help="Optional period start (YYYY-MM-DD)")
     banktx_export.add_argument("--to-date", help="Optional period end (YYYY-MM-DD)")
     banktx_export.add_argument("--out", required=True, help="Output CSV path")
@@ -6557,7 +6453,7 @@ def build_parser() -> argparse.ArgumentParser:
             "export",
             help=f"Write aged {_noun} rows (full amount in the matching aged bucket)",
         )
-        _export.add_argument("--tenant-id", help="Override active tenant id")
+        _export.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
         _export.add_argument("--out", required=True, help="Output CSV path")
         _export.add_argument("--as-at-date", help="Aging reference date YYYY-MM-DD (default: today)")
         _export.add_argument("--source-report", help="Value written to the source_report column")
@@ -6572,13 +6468,13 @@ def build_parser() -> argparse.ArgumentParser:
     history_get = evidence_history_sub.add_parser("get", help="Get history records for a supported Xero object")
     history_get.add_argument("kind", choices=sorted(EVIDENCE_OBJECT_KINDS))
     history_get.add_argument("object_id")
-    history_get.add_argument("--tenant-id", help="Override active tenant id")
+    history_get.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     history_get.set_defaults(func=command_evidence_history_get)
     history_note = evidence_history_sub.add_parser("add-note", help="Add a history note to a supported Xero object")
     history_note.add_argument("kind", choices=sorted(EVIDENCE_OBJECT_KINDS))
     history_note.add_argument("object_id")
     history_note.add_argument("--details", required=True, help="Note details to add to Xero history")
-    history_note.add_argument("--tenant-id", help="Override active tenant id")
+    history_note.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     history_note.set_defaults(func=command_evidence_history_add_note)
 
     evidence_attachments = evidence_sub.add_parser("attachments", help="List, upload, or download Xero attachments")
@@ -6586,7 +6482,7 @@ def build_parser() -> argparse.ArgumentParser:
     attachments_list = evidence_attachments_sub.add_parser("list", help="List attachments for a supported Xero object")
     attachments_list.add_argument("kind", choices=sorted(EVIDENCE_OBJECT_KINDS))
     attachments_list.add_argument("object_id")
-    attachments_list.add_argument("--tenant-id", help="Override active tenant id")
+    attachments_list.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     attachments_list.set_defaults(func=command_evidence_attachments_list)
     attachments_upload = evidence_attachments_sub.add_parser("upload", help="Upload an attachment to a supported Xero object")
     attachments_upload.add_argument("kind", choices=sorted(EVIDENCE_OBJECT_KINDS))
@@ -6594,14 +6490,14 @@ def build_parser() -> argparse.ArgumentParser:
     attachments_upload.add_argument("--file", required=True, help="Local file to upload")
     attachments_upload.add_argument("--filename", help="Attachment filename in Xero; defaults to local basename")
     attachments_upload.add_argument("--content-type", help="MIME type override")
-    attachments_upload.add_argument("--tenant-id", help="Override active tenant id")
+    attachments_upload.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     attachments_upload.set_defaults(func=command_evidence_attachments_upload)
     attachments_download = evidence_attachments_sub.add_parser("download", help="Download an attachment from a supported Xero object")
     attachments_download.add_argument("kind", choices=sorted(EVIDENCE_OBJECT_KINDS))
     attachments_download.add_argument("object_id")
     attachments_download.add_argument("filename")
     attachments_download.add_argument("--out", required=True, help="Local output path")
-    attachments_download.add_argument("--tenant-id", help="Override active tenant id")
+    attachments_download.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     attachments_download.set_defaults(func=command_evidence_attachments_download)
 
     evidence_audit = evidence_sub.add_parser("audit", help="Read-only sweep: which records lack a stapled source document")
@@ -6609,7 +6505,7 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_audit.add_argument("--frozen-before", help="ISO date override; records before it are flagged frozen. Falls back to Xero lock date (snapshot/live), then ap-policy.frozen_before.")
     evidence_audit.add_argument("--ap-policy", help="Path to ap-policy.json; its frozen_before is the final fallback when no Xero lock date is set")
     evidence_audit.add_argument("--snapshots", help="Override snapshot directory (for organisation snapshot used to resolve Xero lock date)")
-    evidence_audit.add_argument("--tenant-id", help="Override active tenant id")
+    evidence_audit.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     evidence_audit.add_argument("--out", help="Write the compliance report to a JSON file")
     evidence_audit.set_defaults(func=command_evidence_audit)
 
@@ -6617,7 +6513,7 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_attach_batch.add_argument("--manifest", required=True, help="JSON manifest: [{file, kind, object_id|match:{date,amount,contact}, note?}]")
     evidence_attach_batch.add_argument("--apply", action="store_true", help="Upload + history-note under the operation lock; omitted means validate-only")
     evidence_attach_batch.add_argument("--skip-missing-files", action="store_true", help="Skip manifest entries whose file isn't present yet (backfill incrementally as documents arrive)")
-    evidence_attach_batch.add_argument("--tenant-id", help="Override active tenant id")
+    evidence_attach_batch.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     evidence_attach_batch.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     evidence_attach_batch.add_argument("--actor", default="local-cli", help="Actor label for apply reports")
     evidence_attach_batch.set_defaults(func=command_evidence_attach_batch)
@@ -6630,7 +6526,7 @@ def build_parser() -> argparse.ArgumentParser:
     documents_create.add_argument("--apply", action="store_true", help="Actually send the request to Xero")
     documents_create.add_argument("--preflight-report", help="Dry-run or audit report proving preflight checks before --apply")
     documents_create.add_argument("--confirm-apply-without-preflight", action="store_true", help="Explicit operator override for --apply without a preflight report")
-    documents_create.add_argument("--tenant-id", help="Override active tenant id")
+    documents_create.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     documents_create.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     documents_create.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     documents_create.add_argument("--out", help="Write dry-run report to JSON file")
@@ -6650,7 +6546,7 @@ def build_parser() -> argparse.ArgumentParser:
     documents_update.add_argument("--apply", action="store_true", help="Actually send the update request to Xero")
     documents_update.add_argument("--preflight-report", help="Dry-run or audit report proving preflight checks before --apply")
     documents_update.add_argument("--confirm-apply-without-preflight", action="store_true", help="Explicit operator override for --apply without a preflight report")
-    documents_update.add_argument("--tenant-id", help="Override active tenant id")
+    documents_update.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     documents_update.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     documents_update.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     documents_update.add_argument("--out", help="Write dry-run report to JSON file")
@@ -6670,7 +6566,7 @@ def build_parser() -> argparse.ArgumentParser:
     documents_action.add_argument("--apply", action="store_true", help="Actually run the invoice action in Xero")
     documents_action.add_argument("--preflight-report", help="Dry-run or audit report proving preflight checks before --apply")
     documents_action.add_argument("--confirm-apply-without-preflight", action="store_true", help="Explicit operator override for --apply without a preflight report")
-    documents_action.add_argument("--tenant-id", help="Override active tenant id")
+    documents_action.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     documents_action.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     documents_action.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     documents_action.add_argument("--out", help="Write dry-run report to JSON file")
@@ -6697,7 +6593,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Only return bills that already have a stapled supplier file",
     )
     bills_inbox.add_argument("--limit", type=int, help="Cap the number of bills returned")
-    bills_inbox.add_argument("--tenant-id", help="Override active tenant id")
+    bills_inbox.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     bills_inbox.set_defaults(func=command_bills_inbox)
     bills_review = bills_sub.add_parser(
         "review",
@@ -6720,7 +6616,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max PDF pages to rasterize or embedded JPEGs to extract (default: 4)",
     )
     bills_review.add_argument("--rules", help="Override finance-rules path")
-    bills_review.add_argument("--tenant-id", help="Override active tenant id")
+    bills_review.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     bills_review.set_defaults(func=command_bills_review)
     bills_learn = bills_sub.add_parser(
         "learn",
@@ -6748,7 +6644,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap_draft.add_argument("--apply", action="store_true", help="Create the DRAFT bill in Xero (requires a preflight report)")
     ap_draft.add_argument("--preflight-report", help="Dry-run or audit report proving preflight checks before --apply")
     ap_draft.add_argument("--confirm-apply-without-preflight", action="store_true", help="Explicit operator override for --apply without a preflight report")
-    ap_draft.add_argument("--tenant-id", help="Override active tenant id")
+    ap_draft.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     ap_draft.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     ap_draft.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     ap_draft.add_argument("--out", help="Write dry-run report to JSON file")
@@ -6805,7 +6701,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Explicit operator override for --apply without a preflight report",
     )
-    ap_batch_pay.add_argument("--tenant-id", help="Override active tenant id")
+    ap_batch_pay.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     ap_batch_pay.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     ap_batch_pay.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     ap_batch_pay.add_argument("--out", help="Write the dry-run report to a JSON file (use as --preflight-report for --apply)")
@@ -6825,22 +6721,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=_BATCH_PAY_UNMATCHED_ALERT_DAYS,
         help="Flag recorded payments older than this many days (default %(default)s)",
     )
-    ap_unmatched.add_argument("--tenant-id", help="Override active tenant id")
+    ap_unmatched.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     ap_unmatched.set_defaults(func=command_ap_check_unmatched_payments)
 
     # Phase 4 — org onboard + validate
-    org = sub.add_parser("org", help="Multi-org onboarding and profile-pack validation")
+    org = sub.add_parser("org", help="Profile-pack scaffolding and validation for this connection's organisation")
     org_sub = org.add_subparsers(dest="org_command", required=True)
 
     org_onboard = org_sub.add_parser(
         "onboard",
         help=(
-            "Orchestrate multi-org onboarding: register the business, scaffold the profile pack, "
-            "and print the auth + snapshot commands the human must run. Idempotent."
+            "Scaffold the profile pack for this connection's organisation and print the "
+            "auth + snapshot commands the human must run. Idempotent."
         ),
     )
-    org_onboard.add_argument("--key", required=True, help="Business slug [a-z0-9-] for the registry and MCP prefix")
-    org_onboard.add_argument("--label", help="Human-readable business name")
+    org_onboard.add_argument("--label", help="Human-readable business name (default: the pack directory name)")
     org_onboard.add_argument(
         "--pack-path",
         required=True,
@@ -6864,7 +6759,7 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Path to the profile-pack directory (must contain finance-rules.json and/or ap-policy.json)",
     )
-    org_validate.add_argument("--snapshots", help="Override snapshot directory (default: per-profile XERO_SNAPSHOT_DIR)")
+    org_validate.add_argument("--snapshots", help="Override snapshot directory (default: XERO_SNAPSHOT_DIR or the connector default)")
     org_validate.set_defaults(func=command_org_validate)
 
     # Phase 5 — payroll prepare-payrun + verify (skeleton)
@@ -6914,7 +6809,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Does NOT lodge STP or execute super payments."
         ),
     )
-    payroll_verify.add_argument("--tenant-id", help="Override active tenant id")
+    payroll_verify.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     payroll_verify.set_defaults(func=command_payroll_verify)
 
     payroll_list_pay_runs = payroll_sub.add_parser(
@@ -6937,7 +6832,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     payroll_list_pay_runs.add_argument("--page", type=int, help="1-based page number (Xero returns up to 100 pay runs per page)")
     payroll_list_pay_runs.add_argument("--order", help="Xero `order` clause")
-    payroll_list_pay_runs.add_argument("--tenant-id", help="Override active tenant id")
+    payroll_list_pay_runs.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     payroll_list_pay_runs.set_defaults(func=command_payroll_list_pay_runs)
 
     payroll_list_timesheets = payroll_sub.add_parser(
@@ -6965,7 +6860,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     payroll_list_timesheets.add_argument("--page", type=int, help="1-based page number (Xero returns up to 100 timesheets per page)")
     payroll_list_timesheets.add_argument("--order", help="Xero `order` clause (default: 'StartDate DESC' when no filter)")
-    payroll_list_timesheets.add_argument("--tenant-id", help="Override active tenant id")
+    payroll_list_timesheets.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     payroll_list_timesheets.set_defaults(func=command_payroll_list_timesheets)
 
     payroll_list_payslips = payroll_sub.add_parser(
@@ -6973,7 +6868,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Read-only: list payslips for a pay run. Requires payroll.payruns.read scope.",
     )
     payroll_list_payslips.add_argument("--pay-run-id", required=True, help="PayRunID UUID")
-    payroll_list_payslips.add_argument("--tenant-id", help="Override active tenant id")
+    payroll_list_payslips.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     payroll_list_payslips.set_defaults(func=command_payroll_list_payslips)
 
     payroll_get_payslip = payroll_sub.add_parser(
@@ -6981,7 +6876,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Read-only: fetch a single payslip by ID. Requires payroll.payruns.read scope.",
     )
     payroll_get_payslip.add_argument("--payslip-id", required=True, help="PayslipID UUID")
-    payroll_get_payslip.add_argument("--tenant-id", help="Override active tenant id")
+    payroll_get_payslip.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     payroll_get_payslip.set_defaults(func=command_payroll_get_payslip)
 
     payroll_employee_pay_template = payroll_sub.add_parser(
@@ -6989,7 +6884,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Read-only: fetch an employee's pay template. Requires payroll.employees.read scope.",
     )
     payroll_employee_pay_template.add_argument("--employee-id", required=True, help="EmployeeID UUID")
-    payroll_employee_pay_template.add_argument("--tenant-id", help="Override active tenant id")
+    payroll_employee_pay_template.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     payroll_employee_pay_template.set_defaults(func=command_payroll_employee_pay_template)
 
     reference = sub.add_parser("reference", help="Dry-run or upsert Xero reference/master data")
@@ -7001,7 +6896,7 @@ def build_parser() -> argparse.ArgumentParser:
     reference_upsert.add_argument("--apply", action="store_true", help="Actually send the request to Xero")
     reference_upsert.add_argument("--preflight-report", help="Dry-run or audit report proving preflight checks before --apply")
     reference_upsert.add_argument("--confirm-apply-without-preflight", action="store_true", help="Explicit operator override for --apply without a preflight report")
-    reference_upsert.add_argument("--tenant-id", help="Override active tenant id")
+    reference_upsert.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     reference_upsert.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     reference_upsert.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     reference_upsert.add_argument("--out", help="Write dry-run report to JSON file")
@@ -7021,7 +6916,7 @@ def build_parser() -> argparse.ArgumentParser:
     prework_create.add_argument("--apply", action="store_true", help="Actually send the request to Xero")
     prework_create.add_argument("--preflight-report", help="Dry-run or audit report proving preflight checks before --apply")
     prework_create.add_argument("--confirm-apply-without-preflight", action="store_true", help="Explicit operator override for --apply without a preflight report")
-    prework_create.add_argument("--tenant-id", help="Override active tenant id")
+    prework_create.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     prework_create.add_argument("--audit-dir", help="Override local audit directory for apply reports")
     prework_create.add_argument("--actor", default="local-cli", help="Actor label for apply report")
     prework_create.add_argument("--out", help="Write dry-run report to JSON file")
@@ -7081,7 +6976,7 @@ def build_parser() -> argparse.ArgumentParser:
     check_live.add_argument("kind", choices=sorted(LIVE_CHECK_KINDS))
     check_live.add_argument("value", help="Reference, name, or code to check")
     check_live.add_argument("--field", help="Override Xero where field for advanced targeted checks")
-    check_live.add_argument("--tenant-id", help="Override active tenant id")
+    check_live.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     check_live.add_argument("--limit", type=int, default=5, help="Maximum matching records to return")
     check_live.set_defaults(func=command_audit_check_live)
     record_apply = audit_sub.add_parser("record-apply", help="Write a local apply/audit report from a JSON event")
@@ -7098,7 +6993,7 @@ def build_parser() -> argparse.ArgumentParser:
     snapshots_sub = snapshots.add_subparsers(dest="snapshots_command", required=True)
     snapshots_fetch = snapshots_sub.add_parser("fetch", help="Fetch a read-only reference snapshot from Xero")
     snapshots_fetch.add_argument("kind", choices=sorted(SNAPSHOT_KINDS))
-    snapshots_fetch.add_argument("--tenant-id", help="Override active tenant id")
+    snapshots_fetch.add_argument("--tenant-id", help="Assert the pinned organisation id; any other id is refused")
     snapshots_fetch.add_argument("--where", help="Optional Xero Accounting API where filter")
     snapshots_fetch.add_argument("--snapshots", help="Override snapshot directory")
     snapshots_fetch.set_defaults(func=command_snapshots_fetch)
@@ -7126,73 +7021,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def apply_profile_env(args: argparse.Namespace) -> None:
-    """Pin path-resolving env vars to the business this command targets.
-
-    No registry → env is left untouched, so single-business and pre-existing-env
-    behaviour is byte-identical to before the feature. With a registry, resolve
-    the target the same way the rest of the module does — explicit
-    --profile/XERO_PROFILE, else the registry default (legacy or sole business) —
-    and pin its env so the CLI and the MCP aggregator always agree on which
-    isolated store a command hits. An ambiguous registry (>=2 businesses, none
-    default) raises ProfileError rather than silently using the legacy store.
-
-    The `profiles` command group resolves profiles itself (and `list` spans
-    several) so it is exempt. An explicit --store still wins, because
-    token_store_path() checks the --store value before the environment.
-    """
-    if getattr(args, "command", None) == "profiles":
-        return
-    requested = xero_profiles.active_profile_key(getattr(args, "profile", None))
-    if xero_profiles.load_registry() is None:
-        # No registry: leave env untouched, but never silently swallow an
-        # explicit --profile/XERO_PROFILE — resolve it so an unknown business
-        # raises rather than running against the legacy store unnoticed.
-        if requested and requested != xero_profiles.IMPLICIT_DEFAULT_KEY:
-            xero_profiles.resolve_active_profile(requested)  # raises ProfileError
-        return
-    profile = xero_profiles.resolve_active_profile(getattr(args, "profile", None))
-    os.environ.update(profile.env())
-    # Record the resolved key so downstream tenant-identity pinning works the
-    # same whether the profile came from --profile or XERO_PROFILE.
-    os.environ[xero_profiles.PROFILE_ENV] = profile.key
-
-
-def assert_pinned_tenant(tenant_id: str) -> None:
-    """Defence-in-depth: refuse if the active tenant != the profile's pinned tenant.
-
-    When the active profile (XERO_PROFILE) records an expected Xero tenant id,
-    every token mint / API call asserts the resolved store's active tenant
-    matches it. A misroute (wrong store -> wrong org) is then refused outright
-    rather than silently executing against the wrong organisation. No pin
-    recorded -> no assertion (opt-in hardening; legacy/unpinned unaffected).
-    """
-    requested = xero_profiles.active_profile_key()
-    if not requested or requested == xero_profiles.IMPLICIT_DEFAULT_KEY:
-        return
-    try:
-        profile = xero_profiles.resolve_active_profile(requested)
-    except xero_profiles.ProfileError:
-        return
-    if profile.tenant_id and tenant_id and profile.tenant_id != tenant_id:
-        raise XeroCliError(
-            f"Tenant identity mismatch for profile {profile.key!r}: token store active "
-            f"tenant {tenant_id} does not match the pinned tenant {profile.tenant_id}. "
-            "Refusing the operation — this indicates a cross-org misroute. If the pin is "
-            f"wrong, run `xero --profile {profile.key} profiles pin-tenant`."
-        )
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        apply_profile_env(args)
+        xero_single_connection.assert_single_connection()
         return int(args.func(args))
     except (
         XeroCliError,
         xero_ap_policy.APPolicyError,
-        xero_profiles.ProfileError,
+        xero_single_connection.SingleConnectionError,
         xero_finance_rules.FinanceRulesError,
         xero_operation_lock.OperationLockError,
     ) as exc:

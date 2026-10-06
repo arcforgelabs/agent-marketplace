@@ -38,7 +38,7 @@ const plugin = defineToolPlugin({
     tool({
       name: "xero_status",
       label: "Xero status",
-      description: "Read local Xero connector, OAuth, tenant-profile, rate-limit, lock, and MCP readiness without network access or mutation.",
+      description: "Read local Xero connector, OAuth, pinned-organisation, rate-limit, lock, and MCP readiness without network access or mutation.",
       parameters: Type.Object({}, { additionalProperties: false }),
       execute: async (_params, config) => readStatus(config),
     }),
@@ -62,7 +62,6 @@ const plugin = defineToolPlugin({
           ]),
           object_id: Type.String({ description: "Xero object UUID. For bills this is InvoiceID." }),
           filename: Type.Optional(Type.String({ description: "Attachment FileName from action=list. Required for download." })),
-          tenant_id: Type.Optional(Type.String()),
         },
         { additionalProperties: false },
       ),
@@ -78,7 +77,6 @@ const plugin = defineToolPlugin({
           max_records: Type.Optional(
             Type.Integer({ minimum: 1, maximum: MAX_AUDIT_RECORDS, default: DEFAULT_AUDIT_RECORDS, description: "Cap on each returned missing-record list; totals are always complete." }),
           ),
-          tenant_id: Type.Optional(Type.String()),
         },
         { additionalProperties: false },
       ),

@@ -2,7 +2,7 @@
   "id": "arcforgelabs-xero",
   "name": "Xero",
   "description": "Native OpenClaw Gateway bridge for the Arc Forge Xero connector.",
-  "version": "2026.10.1",
+  "version": "2026.10.2",
   "skills": [
     "./skills"
   ],
@@ -24,6 +24,7 @@
       "transport": "streamable-http",
       "url": "http://127.0.0.1:8796/mcp",
       "supportsParallelToolCalls": true,
+      "connectionTimeoutMs": 5000,
       "requestTimeoutMs": 130000
     }
   },

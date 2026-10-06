@@ -28,11 +28,10 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import xero_profiles
+import xero_single_connection
 import xero_version
 
 # ---------------------------------------------------------------------------
@@ -46,9 +45,8 @@ HANDSHAKE_TIMEOUT = 120  # seconds — the official Node server may download/pat
 
 _MODULE_ROOT = Path(__file__).resolve().parents[1]  # connectors/xero
 
-# The two backend kinds every business exposes. Per-business instances are
-# built from these in _build_backends(), each with its own env overlay so the
-# official Node server's `xero auth token` call reads the right token store.
+# The two backends behind the one Xero connection. Both read the connector's
+# single token store and act on its pinned organisation only.
 BACKEND_KINDS: list[dict[str, Any]] = [
     {
         "label": "xero-official",
@@ -69,67 +67,6 @@ BACKEND_KINDS: list[dict[str, Any]] = [
 ]
 
 
-@dataclass
-class BusinessPlan:
-    """One business to expose: its identity, tool-name prefix, and env overlay."""
-
-    key: str
-    label: str
-    prefix: str
-    env_overlay: dict[str, str] = field(default_factory=dict)
-
-
-def _plan_businesses() -> list[BusinessPlan]:
-    """Resolve which businesses to expose and how to namespace their tools.
-
-    No registry file → a single legacy business with NO prefix and NO env
-    overlay, i.e. byte-identical to the original single-business aggregator
-    (the .mcp.json-provided env flows through untouched). With a registry,
-    each business gets its own env overlay; two or more businesses force a
-    per-business tool-name prefix so no bare/ambiguous tool can exist.
-    """
-    try:
-        registry = xero_profiles.load_registry()
-    except Exception as exc:  # malformed/duplicate/>1-legacy registry
-        # A bad registry must not take down every Xero tool. Degrade to the
-        # single legacy business and report loudly on stderr.
-        print(
-            f"[xero-aggregator] WARNING: business registry unreadable ({exc}); "
-            "falling back to single legacy business",
-            file=sys.stderr,
-        )
-        registry = None
-    if registry is None or not registry.profiles:
-        profiles = [xero_profiles.implicit_default_profile()]
-    else:
-        profiles = registry.profiles
-    assigned = xero_profiles.assign_prefixes(profiles)
-    single = len(assigned) == 1
-    plans: list[BusinessPlan] = []
-    for profile, prefix in assigned:
-        # No env overlay for the lone legacy business: defer to ambient
-        # .mcp.json env so behaviour stays byte-identical to the no-registry
-        # default. Isolated or multiple businesses must pin their own stores.
-        if registry is None or (single and profile.legacy):
-            overlay: dict[str, str] = {}
-        else:
-            # CRITICAL: pin XERO_PROFILE alongside the path vars. The backends
-            # shell out to the `xero` CLI (auth token / workflows), which runs
-            # apply_profile_env(); without XERO_PROFILE it re-resolves to the
-            # registry DEFAULT profile and os.environ.update() clobbers the
-            # inherited per-business paths — so every call silently hits the
-            # default org. Setting XERO_PROFILE makes the subprocess resolve
-            # THIS business and pin the correct store/rules.
-            overlay = {**profile.env(), xero_profiles.PROFILE_ENV: profile.key}
-        plans.append(
-            BusinessPlan(key=profile.key, label=profile.label, prefix=prefix, env_overlay=overlay)
-        )
-    return plans
-
-
-def _public_name(prefix: str, name: str) -> str:
-    return f"{prefix}__{name}" if prefix else name
-
 # ---------------------------------------------------------------------------
 # Backend
 # ---------------------------------------------------------------------------
@@ -141,6 +78,11 @@ _READER_EOF = object()  # delivered to every waiter when child stdout closes
 # concurrency cap is enforced by the rate governor inside the official child;
 # this only keeps one runaway client from queueing unbounded work.
 MAX_INFLIGHT_PER_BACKEND = int(os.environ.get("ARC_FORGE_XERO_MCP_MAX_INFLIGHT", "8"))
+# How long one tools/call may wait for its backend, including the FIFO
+# operation lock (xero_operation_lock.DEFAULT_WAIT_TIMEOUT_SECONDS). The plugin
+# manifest's requestTimeoutMs must stay above this so the agent gets this
+# server's clear error rather than an OpenClaw transport timeout.
+CALL_TIMEOUT_SECONDS = 120.0
 RESTART_BACKOFF_MIN = 1.0
 RESTART_BACKOFF_MAX = 30.0
 
@@ -166,19 +108,10 @@ class Backend:
         label: str,
         argv: list[str],
         desc: str,
-        *,
-        business_key: str = xero_profiles.IMPLICIT_DEFAULT_KEY,
-        business_label: str = "Default (legacy)",
-        prefix: str = "",
-        env_overlay: dict[str, str] | None = None,
     ) -> None:
         self.label = label
         self.argv = argv
         self.desc = desc
-        self.business_key = business_key
-        self.business_label = business_label
-        self.prefix = prefix
-        self.env_overlay = env_overlay or {}
         self.status: str = "idle"  # idle | up | error | down
         self.error_message: str = ""
         self.tools: list[dict[str, Any]] = []
@@ -194,16 +127,11 @@ class Backend:
         self._inflight = threading.BoundedSemaphore(MAX_INFLIGHT_PER_BACKEND)
         self._next_start_at = 0.0
         self._backoff = RESTART_BACKOFF_MIN
-        self.on_tools_changed: Any = None  # callable() set by the aggregator
+        self.on_up: Any = None  # callable(backend) set by the aggregator; runs after every successful start
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
-
-    def start(self) -> None:
-        """Start the child process and perform the MCP handshake."""
-        with self._lifecycle_lock:
-            self._start_locked()
 
     def _start_locked(self) -> None:
         self._next_start_at = time.monotonic() + self._backoff
@@ -215,7 +143,7 @@ class Backend:
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                env={**os.environ.copy(), **self.env_overlay},
+                env=os.environ.copy(),
             )
         except Exception as exc:
             self.status = "error"
@@ -351,11 +279,10 @@ class Backend:
                 self.restarts += 1
                 print(f"[xero-aggregator] backend {self.label!r} restarting (restart #{self.restarts})", file=sys.stderr)
                 self.terminate()
-            previous = [t.get("name") for t in self.tools]
             self._start_locked()
             ok = self.status == "up"
-        if ok and previous != [t.get("name") for t in self.tools] and self.on_tools_changed:
-            self.on_tools_changed()
+        if ok and self.on_up:
+            self.on_up(self)
         return ok
 
     def close(self) -> None:
@@ -408,7 +335,7 @@ class Backend:
     # Per-call request
     # ------------------------------------------------------------------
 
-    def request(self, method: str, params: dict[str, Any], timeout: float = 120.0) -> dict[str, Any]:
+    def request(self, method: str, params: dict[str, Any], timeout: float = CALL_TIMEOUT_SECONDS) -> dict[str, Any]:
         """Send a JSON-RPC request to the child and return its response."""
         if not self.ensure_running():
             raise RuntimeError(f"Backend {self.label!r} process is not running")
@@ -425,46 +352,129 @@ class Backend:
 # ---------------------------------------------------------------------------
 
 def _build_backends() -> list[Backend]:
-    backends: list[Backend] = []
-    for plan in _plan_businesses():
-        for kind in BACKEND_KINDS:
-            backends.append(
-                Backend(
-                    label=kind["label"],
-                    argv=kind["argv"],
-                    desc=kind["desc"],
-                    business_key=plan.key,
-                    business_label=plan.label,
-                    prefix=plan.prefix,
-                    env_overlay=plan.env_overlay,
-                )
-            )
-    return backends
+    return [Backend(label=kind["label"], argv=kind["argv"], desc=kind["desc"]) for kind in BACKEND_KINDS]
+
+
+# ---------------------------------------------------------------------------
+# Tool catalogue cache
+# ---------------------------------------------------------------------------
+#
+# OpenClaw connects every new agent session and lists tools before the first
+# turn. Answering that from the last known catalogue means no session waits
+# for the backend chain (Node start, official-server patching, handshakes)
+# just to learn the tool names. The cache is per backend, written whenever a
+# backend comes up with a different catalogue, and ignored after a release or
+# upstream pin change, since either can change tool names or schemas.
+
+DEFAULT_CATALOG_PATH = Path.home() / ".config" / "arc-forge-tools" / "xero" / "mcp-catalog.json"
+CATALOG_FORMAT = 1
+# With no cached catalogue for a backend (first start after an install or
+# upgrade), tools/list waits this long for it before answering without it.
+COLD_LIST_WAIT_SECONDS = float(os.environ.get("ARC_FORGE_XERO_MCP_COLD_LIST_WAIT") or 8.0)
+
+
+def catalog_path() -> Path:
+    raw = (os.environ.get("ARC_FORGE_XERO_MCP_CATALOG") or "").strip()
+    return Path(raw).expanduser().resolve() if raw else DEFAULT_CATALOG_PATH
+
+
+class CatalogCache:
+    """Last known tool list per backend, persisted across service restarts."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._lock = threading.Lock()
+        self._tools: dict[str, list[dict[str, Any]]] = {}
+        self.updated_at: float | None = None
+
+    def _stamp(self) -> dict[str, Any]:
+        return {
+            "format": CATALOG_FORMAT,
+            "version": SERVER_VERSION,
+            "official_package": xero_version.official_package_spec(),
+        }
+
+    def load(self) -> None:
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return
+        except (OSError, ValueError) as exc:
+            print(f"[xero-aggregator] ignoring unreadable tool catalogue {self.path}: {exc}", file=sys.stderr)
+            return
+        if not isinstance(payload, dict) or any(payload.get(k) != v for k, v in self._stamp().items()):
+            print("[xero-aggregator] cached tool catalogue is from another release; ignoring it", file=sys.stderr)
+            return
+        backends = payload.get("backends")
+        if not isinstance(backends, dict):
+            return
+        with self._lock:
+            self._tools = {
+                label: tools
+                for label, tools in backends.items()
+                if isinstance(tools, list) and all(isinstance(t, dict) and t.get("name") for t in tools)
+            }
+            self.updated_at = payload.get("updated_at")
+
+    def tools(self, label: str) -> list[dict[str, Any]]:
+        with self._lock:
+            return self._tools.get(label, [])
+
+    def labels(self) -> list[str]:
+        with self._lock:
+            return sorted(label for label, tools in self._tools.items() if tools)
+
+    def update(self, label: str, tools: list[dict[str, Any]]) -> bool:
+        """Record a backend's live catalogue; write the file only on change."""
+        with self._lock:
+            if self._tools.get(label) == tools:
+                return False
+            self._tools[label] = tools
+            self.updated_at = time.time()
+            payload = {**self._stamp(), "updated_at": self.updated_at, "backends": self._tools}
+            try:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                tmp = self.path.with_name(f".{self.path.name}.{os.getpid()}.tmp")
+                tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+                os.chmod(tmp, 0o600)
+                os.replace(tmp, self.path)
+            except OSError as exc:
+                # The in-memory catalogue still serves this process.
+                print(f"[xero-aggregator] could not persist tool catalogue: {exc}", file=sys.stderr)
+        return True
 
 
 _backends: list[Backend] = _build_backends()
-_tool_index: dict[str, tuple[Backend, str]] = {}  # public tool name -> (backend, real name)
+_catalog = CatalogCache(catalog_path())
+_tool_index: dict[str, tuple[Backend, str]] = {}  # tool name -> (backend, real name)
 _started = False
 _start_lock = threading.Lock()
+# Set when retired multi-business state is present: the aggregator then starts
+# no backends and refuses every MCP request instead of picking a connection.
+_refusal: str | None = None
+
+
+def _listed_tools(backend: Backend) -> list[dict[str, Any]]:
+    """The backend's live tools when it has them, else its cached catalogue."""
+    if backend.serves_tools():
+        return backend.tools
+    return [] if backend._closing else _catalog.tools(backend.label)
 
 
 def _rebuild_tool_index() -> None:
-    """Rebuild the public tool index — first backend wins on collision.
+    """Rebuild the tool index — first backend wins on collision.
 
-    Public names are prefixed per business when more than one business is
-    exposed. The new dict is swapped in whole, so concurrent readers always
-    see a complete index.
+    The new dict is swapped in whole, so concurrent readers always see a
+    complete index.
     """
     global _tool_index
     index: dict[str, tuple[Backend, str]] = {}
     for backend in _backends:
-        if not backend.serves_tools():
-            continue
-        for tool in backend.tools:
+        for tool in _listed_tools(backend):
             name = tool.get("name", "")
             if not name:
                 continue
-            public = _public_name(backend.prefix, name)
+            public = name
             if public in index:
                 existing, _real = index[public]
                 print(
@@ -478,27 +488,62 @@ def _rebuild_tool_index() -> None:
     _tool_index = index
 
 
+def _on_backend_up(backend: Backend) -> None:
+    """Runs after every successful (re)start: refresh the index and the cache."""
+    _rebuild_tool_index()
+    if _catalog.update(backend.label, backend.tools):
+        print(f"[xero-aggregator] tool catalogue refreshed from {backend.label!r} ({len(backend.tools)} tools)", file=sys.stderr)
+
+
+def _warm_backend(backend: Backend) -> None:
+    try:
+        backend.ensure_running()
+    except Exception as exc:
+        backend.status = "error"
+        backend.error_message = str(exc)
+        print(f"[xero-aggregator] backend {backend.label!r} failed: {exc}", file=sys.stderr)
+
+
 def _ensure_started() -> None:
-    global _started
+    """Begin starting the backend chain, once. Never waits for it.
+
+    The backends start in parallel on their own threads; until each is up,
+    tools/list serves its cached catalogue and tools/call waits for it.
+    """
+    global _started, _refusal
     with _start_lock:
         if _started:
             return
         _started = True
-        print("[xero-aggregator] starting backends...", file=sys.stderr)
-        for backend in _backends:
-            backend.on_tools_changed = _rebuild_tool_index
-            try:
-                backend.start()
-            except Exception as exc:
+        try:
+            xero_single_connection.assert_single_connection()
+        except xero_single_connection.SingleConnectionError as exc:
+            _refusal = str(exc)
+            for backend in _backends:
                 backend.status = "error"
-                backend.error_message = str(exc)
-                print(f"[xero-aggregator] backend {backend.label!r} failed: {exc}", file=sys.stderr)
+                backend.error_message = _refusal
+            print(f"[xero-aggregator] {_refusal}", file=sys.stderr)
+            return
+        _catalog.load()
         _rebuild_tool_index()
+        cached = _catalog.labels()
         print(
-            f"[xero-aggregator] ready: {len(_tool_index)} tools from "
-            f"{sum(1 for b in _backends if b.status == 'up')} backends",
+            f"[xero-aggregator] starting backends; serving {len(_tool_index)} cached tools"
+            f"{' from ' + ', '.join(cached) if cached else ''} meanwhile",
             file=sys.stderr,
         )
+        for backend in _backends:
+            backend.on_up = _on_backend_up
+            threading.Thread(target=_warm_backend, args=(backend,), daemon=True, name=f"warm-{backend.label}").start()
+
+
+def _await_cold_catalogue(timeout: float) -> None:
+    """Wait, bounded, for backends that have neither live nor cached tools."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if all(_listed_tools(b) or b._closing for b in _backends):
+            return
+        time.sleep(0.05)
 
 
 # ---------------------------------------------------------------------------
@@ -516,56 +561,32 @@ XERO_BACKENDS_TOOL: dict[str, Any] = {
 }
 
 
-def _ordered_businesses() -> list[tuple[str, str, str]]:
-    """Unique (key, label, prefix) tuples in backend declaration order."""
-    seen: set[str] = set()
-    out: list[tuple[str, str, str]] = []
-    for b in _backends:
-        if b.business_key in seen:
-            continue
-        seen.add(b.business_key)
-        out.append((b.business_key, b.business_label, b.prefix))
-    return out
-
-
 def _call_xero_backends() -> dict[str, Any]:
-    businesses = _ordered_businesses()
-    multi = len(businesses) > 1
     header = (
-        f"Arc Forge Xero {SERVER_VERSION} ({xero_version.PACKAGE_NAME}) — {len(businesses)} business(es), "
+        f"Arc Forge Xero {SERVER_VERSION} ({xero_version.PACKAGE_NAME}) — one connection, "
         f"{len(_backends)} backends"
     )
-    lines: list[str] = [header]
-    if multi:
-        lines.append("Tools are prefixed per business: <business>__<tool>.")
-    else:
-        lines.append("Single business: tool names are unprefixed.")
+    lines: list[str] = [header, ""]
+    for b in _backends:
+        lines.append(f"  Backend: {b.label}")
+        lines.append(f"    desc:    {b.desc}")
+        lines.append(f"    status:  {b.status}")
+        if b.status == "up":
+            lines.append(
+                f"    server:  {b.child_server_info.get('name')} reports version {b.child_server_info.get('version')}"
+            )
+            if b.label == "xero-official":
+                lines.append(f"    package: {xero_version.official_package_spec()} (upstream)")
+            if b.restarts:
+                lines.append(f"    restarts: {b.restarts}")
+            lines.append(f"    tools ({len(b.tools)}):")
+            for t in b.tools:
+                lines.append(f"      - {t.get('name', '?')}")
+        elif b.status == "error":
+            lines.append(f"    error:   {b.error_message}")
+        elif b.status == "down":
+            lines.append("    (process has exited)")
     lines.append("")
-    for key, label, prefix in businesses:
-        tag = f"{prefix}__" if prefix else "(no prefix)"
-        lines.append(f"Business: {label}  [{key}]  tool prefix: {tag}")
-        for b in _backends:
-            if b.business_key != key:
-                continue
-            lines.append(f"  Backend: {b.label}")
-            lines.append(f"    desc:    {b.desc}")
-            lines.append(f"    status:  {b.status}")
-            if b.status == "up":
-                lines.append(
-                    f"    server:  {b.child_server_info.get('name')} reports version {b.child_server_info.get('version')}"
-                )
-                if b.label == "xero-official":
-                    lines.append(f"    package: {xero_version.official_package_spec()} (upstream)")
-                if b.restarts:
-                    lines.append(f"    restarts: {b.restarts}")
-                lines.append(f"    tools ({len(b.tools)}):")
-                for t in b.tools:
-                    lines.append(f"      - {_public_name(b.prefix, t.get('name', '?'))}")
-            elif b.status == "error":
-                lines.append(f"    error:   {b.error_message}")
-            elif b.status == "down":
-                lines.append("    (process has exited)")
-        lines.append("")
     text = "\n".join(lines)
     return {"content": [{"type": "text", "text": text}], "isError": False}
 
@@ -584,33 +605,18 @@ def _response(req_id: Any, result: Any = None, error: dict[str, Any] | None = No
 
 
 def _merged_tools() -> list[dict[str, Any]]:
-    """Return flat merged tool list: all backends + xero_backends.
-
-    When tools are prefixed (multi-business), each tool is emitted under its
-    public name and its description is tagged with the business label so the
-    target entity is unmistakable in a tool listing.
-    """
+    """Return flat merged tool list: all backends + xero_backends."""
     seen: set[str] = set()
     tools: list[dict[str, Any]] = []
     for b in _backends:
-        if not b.serves_tools():
-            continue
-        for t in b.tools:
+        for t in _listed_tools(b):
             name = t.get("name", "")
             if not name:
                 continue
-            public = _public_name(b.prefix, name)
-            if public in seen:
+            if name in seen:
                 continue
-            seen.add(public)
-            if b.prefix:
-                tool = dict(t)
-                tool["name"] = public
-                desc = tool.get("description", "")
-                tool["description"] = f"[{b.business_label}] {desc}".rstrip()
-                tools.append(tool)
-            else:
-                tools.append(t)
+            seen.add(name)
+            tools.append(t)
     # Always append aggregator-owned tool last
     tools.append(XERO_BACKENDS_TOOL)
     return tools
@@ -629,8 +635,12 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
     try:
-        if method == "initialize":
+        if method in ("initialize", "tools/list", "tools/call"):
             _ensure_started()
+            if _refusal:
+                return _response(req_id, error={"code": -32000, "message": _refusal})
+
+        if method == "initialize":
             client_proto = message.get("params", {}).get("protocolVersion", PROTOCOL_VERSION_DEFAULT)
             return _response(
                 req_id,
@@ -645,11 +655,10 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
             return _response(req_id, {})
 
         if method == "tools/list":
-            _ensure_started()
+            _await_cold_catalogue(COLD_LIST_WAIT_SECONDS)
             return _response(req_id, {"tools": _merged_tools()})
 
         if method == "tools/call":
-            _ensure_started()
             params = message.get("params") or {}
             tool_name = params.get("name", "")
             arguments = params.get("arguments") or {}
@@ -658,15 +667,17 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                 return _response(req_id, _call_xero_backends())
 
             entry = _tool_index.get(tool_name)
+            if entry is None and not all(_listed_tools(b) for b in _backends):
+                # A session that listed tools before this service restarted
+                # can call one before an uncached backend is back up.
+                _await_cold_catalogue(CALL_TIMEOUT_SECONDS)
+                entry = _tool_index.get(tool_name)
             if entry is None:
                 return _response(
                     req_id,
                     error={"code": -32601, "message": f"Tool not found: {tool_name!r}"},
                 )
-            backend, real_name = entry
-            # Forward under the backend's real (unprefixed) tool name.
-            if real_name != tool_name:
-                params = {**params, "name": real_name}
+            backend, _real_name = entry
 
             if not backend.ensure_running():
                 return _response(
@@ -686,7 +697,7 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                 )
 
             try:
-                child_resp = backend.request("tools/call", params, timeout=120.0)
+                child_resp = backend.request("tools/call", params, timeout=CALL_TIMEOUT_SECONDS)
             except Exception as exc:
                 return _response(
                     req_id,
@@ -870,16 +881,18 @@ def health_payload() -> dict[str, Any]:
     backends = [
         {
             "label": b.label,
-            "business": b.business_key,
             "status": b.status,
             "tools": len(b.tools),
+            "catalog": "live" if b.serves_tools() else ("cache" if _listed_tools(b) else "none"),
             "restarts": b.restarts,
             "pid": b._child.pid if b.is_alive() and b._child else None,
             **({"error": b.error_message} if b.status == "error" else {}),
         }
         for b in _backends
     ]
-    if not _started or any(b.status == "idle" for b in _backends):
+    if _refusal:
+        status = "refused"
+    elif not _started or any(b.status == "idle" for b in _backends):
         status = "starting"
     elif all(b.status == "up" for b in _backends):
         status = "ok"
@@ -897,6 +910,7 @@ def health_payload() -> dict[str, Any]:
         "tools": len(_tool_index) + 1,
         "connector_root": str(_MODULE_ROOT),
         "backends": backends,
+        **({"error": _refusal} if _refusal else {}),
     }
 
 
@@ -1083,9 +1097,9 @@ def serve_http(host: str, port: int, exit_with_parent: bool = False) -> int:
 
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
-    # Start backends in the background: /healthz answers "starting" at once
-    # and /mcp requests wait on the start lock until the chain is ready.
-    threading.Thread(target=_ensure_started, daemon=True).start()
+    # Warm the backend chain now, not on the first request. /healthz answers
+    # "starting" until it is up; initialize and tools/list never wait for it.
+    _ensure_started()
     if exit_with_parent:
         threading.Thread(target=_watch_parent, args=(httpd,), daemon=True).start()
     try:

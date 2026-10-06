@@ -113,16 +113,15 @@ export async function readStatus(config = {}) {
       error: "Xero connector entrypoints are missing. Configure plugins.entries.xero.config.connectorRoot.",
     };
   }
-  const [doctor, auth, profiles, rate, lock, mcp, workflows] = await Promise.all([
+  const [doctor, auth, rate, lock, mcp, workflows] = await Promise.all([
     execJson(paths.cli, ["doctor"], { cwd: paths.root, timeoutMs }),
     execJson(paths.cli, ["auth", "status"], { cwd: paths.root, timeoutMs }),
-    execJson(paths.cli, ["profiles", "list"], { cwd: paths.root, timeoutMs }),
     execJson(paths.cli, ["rate", "status", "--include-cli"], { cwd: paths.root, timeoutMs }),
     execJson(paths.cli, ["lock", "status"], { cwd: paths.root, timeoutMs }),
     execJson(paths.mcp, ["status"], { cwd: paths.root, timeoutMs }),
     execJson(paths.workflows, ["self-test"], { cwd: paths.root, timeoutMs }),
   ]);
-  const checks = { doctor, auth, profiles, rate, lock, mcp, workflows };
+  const checks = { doctor, auth, rate, lock, mcp, workflows };
   const shared = await probeSharedService();
   return {
     ok: Object.values(checks).every((check) => check.ok),
@@ -266,7 +265,6 @@ async function downloadAttachment(config, params) {
   try {
     const target = path.join(directory, "attachment");
     const args = ["evidence", "attachments", "download", params.kind, params.object_id, params.filename, "--out", target];
-    if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
     const result = await runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
     if (!result.ok) return result;
     const { size } = await stat(target);
@@ -305,7 +303,6 @@ export async function runEvidenceAttachments(config = {}, params = {}) {
   }
   if (action === "list") {
     const args = ["evidence", "attachments", "list", kind, objectId];
-    if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
     return runCliJson(config, args);
   }
   if (action === "download") return downloadAttachment(config, params);
@@ -323,7 +320,6 @@ export async function runEvidenceAudit(config = {}, params = {}) {
   const args = ["evidence", "audit"];
   const kinds = Array.isArray(params.kinds) && params.kinds.length ? params.kinds : ["bill"];
   args.push("--kinds", ...kinds);
-  if (params.tenant_id) args.push("--tenant-id", params.tenant_id);
   const result = await runCliJson({ ...config, commandTimeoutMs: config.commandTimeoutMs || 120000 }, args);
   const report = result.payload;
   if (!result.ok || !report || typeof report !== "object") return result;

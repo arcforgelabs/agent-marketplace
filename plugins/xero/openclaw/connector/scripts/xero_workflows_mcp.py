@@ -84,7 +84,6 @@ TOOLS: list[dict[str, Any]] = [
                 "action": enum_schema(["fetch", "list"]),
                 "kind": enum_schema(["accounts", "contacts", "items", "tax-rates", "tracking-categories"]),
                 "where": {"type": "string"},
-                "tenant_id": {"type": "string"},
                 "snapshots": {"type": "string"},
             },
             required=["action"],
@@ -113,7 +112,6 @@ TOOLS: list[dict[str, Any]] = [
                 "kind": enum_schema(["bank-transaction", "bill", "contact", "invoice", "item", "payment"]),
                 "value": {"type": "string"},
                 "field": {"type": "string"},
-                "tenant_id": {"type": "string"},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 5},
             },
             required=["kind", "value"],
@@ -147,7 +145,6 @@ TOOLS: list[dict[str, Any]] = [
                 "object_id": {"type": "string", "description": "Xero object UUID (InvoiceID for bills)"},
                 "filename": {"type": "string", "description": "Required for download"},
                 "out_path": {"type": "string", "description": "Local file path for download"},
-                "tenant_id": {"type": "string"},
             },
             required=["action", "kind", "object_id"],
         ),
@@ -167,7 +164,6 @@ TOOLS: list[dict[str, Any]] = [
                     "description": "Object kinds to scan (default: bill)",
                 },
                 "out_path": {"type": "string", "description": "Optional JSON report path"},
-                "tenant_id": {"type": "string"},
             },
         ),
         "annotations": {"readOnlyHint": True, "openWorldHint": True},
@@ -192,7 +188,6 @@ TOOLS: list[dict[str, Any]] = [
                     "description": "Only bills that already have a stapled supplier file",
                 },
                 "limit": {"type": "integer", "minimum": 1, "maximum": 200},
-                "tenant_id": {"type": "string"},
             },
         ),
         "annotations": {"readOnlyHint": True, "openWorldHint": True},
@@ -220,7 +215,6 @@ TOOLS: list[dict[str, Any]] = [
                     "default": 4,
                 },
                 "rules": {"type": "string"},
-                "tenant_id": {"type": "string"},
             },
             required=["invoice_id"],
         ),
@@ -253,7 +247,6 @@ TOOLS: list[dict[str, Any]] = [
                 "kind": enum_schema(["bill", "credit-note", "invoice", "quote"]),
                 "payload": {"type": ["array", "object"]},
                 "apply": {"type": "boolean", "default": False},
-                "tenant_id": {"type": "string"},
                 "actor": {"type": "string"},
                 "audit_dir": {"type": "string"},
                 "preflight_report": {"type": "string"},
@@ -273,7 +266,6 @@ TOOLS: list[dict[str, Any]] = [
                 "payload": {"type": ["array", "object"]},
                 "status": {"type": "string"},
                 "apply": {"type": "boolean", "default": False},
-                "tenant_id": {"type": "string"},
                 "actor": {"type": "string"},
                 "audit_dir": {"type": "string"},
                 "preflight_report": {"type": "string"},
@@ -292,7 +284,6 @@ TOOLS: list[dict[str, Any]] = [
                 "action": enum_schema(["email", "online-url"]),
                 "identifier": {"type": "string"},
                 "apply": {"type": "boolean", "default": False},
-                "tenant_id": {"type": "string"},
                 "actor": {"type": "string"},
                 "audit_dir": {"type": "string"},
                 "preflight_report": {"type": "string"},
@@ -311,7 +302,6 @@ TOOLS: list[dict[str, Any]] = [
                 "payload": {"type": ["array", "object"]},
                 "method": enum_schema(["POST", "PUT"]),
                 "apply": {"type": "boolean", "default": False},
-                "tenant_id": {"type": "string"},
                 "actor": {"type": "string"},
                 "audit_dir": {"type": "string"},
                 "preflight_report": {"type": "string"},
@@ -329,7 +319,6 @@ TOOLS: list[dict[str, Any]] = [
                 "kind": enum_schema(["bank-transaction", "bank-transfer", "batch-payment", "manual-journal", "payment"]),
                 "payload": {"type": ["array", "object"]},
                 "apply": {"type": "boolean", "default": False},
-                "tenant_id": {"type": "string"},
                 "actor": {"type": "string"},
                 "audit_dir": {"type": "string"},
                 "preflight_report": {"type": "string"},
@@ -342,26 +331,24 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "xero_payroll_pay_runs",
         "description": (
-            "Read-only: list AU Payroll pay runs for an org. "
+            "Read-only: list AU Payroll pay runs for the connected organisation. "
             "Returns pay-run records and a gross_total convenience sum. "
             "Requires payroll.payruns.read (or payroll.payruns write) scope."
         ),
         "inputSchema": object_schema(
             {
-                "tenant_id": {"type": "string", "description": "Xero tenant (org) UUID — required for Model C per-call org selection"},
                 "from_date": {"type": "string", "description": "Filter by PaymentDate >= this date (YYYY-MM-DD); translated to a Xero `where` clause"},
                 "to_date": {"type": "string", "description": "Filter by PaymentDate <= this date (YYYY-MM-DD); translated to a Xero `where` clause"},
                 "where": {"type": "string", "description": "Raw Xero `where` filter (escape hatch; overrides from_date/to_date)"},
                 "page": {"type": "integer", "minimum": 1, "description": "1-based page number (up to 100 pay runs per page)"},
             },
-            required=["tenant_id"],
         ),
         "annotations": {"readOnlyHint": True, "openWorldHint": True},
     },
     {
         "name": "xero_payroll_timesheets",
         "description": (
-            "Read-only: list AU Payroll timesheets for an org, filterable by date range "
+            "Read-only: list AU Payroll timesheets for the connected organisation, filterable by date range "
             "(from_date/to_date), employee, or status. Unlike the upstream list-timesheets "
             "tool (oldest 100, no filter), this targets any pay period via a where clause and "
             "defaults to most-recent-first. Returns timesheet records and an hours_total "
@@ -369,7 +356,6 @@ TOOLS: list[dict[str, Any]] = [
         ),
         "inputSchema": object_schema(
             {
-                "tenant_id": {"type": "string", "description": "Xero tenant (org) UUID — required for Model C per-call org selection"},
                 "from_date": {"type": "string", "description": "Filter by StartDate >= this date (YYYY-MM-DD); translated to a Xero `where` clause"},
                 "to_date": {"type": "string", "description": "Filter by EndDate <= this date (YYYY-MM-DD); translated to a Xero `where` clause"},
                 "employee_id": {"type": "string", "description": "Filter by EmployeeID UUID"},
@@ -378,7 +364,6 @@ TOOLS: list[dict[str, Any]] = [
                 "page": {"type": "integer", "minimum": 1, "description": "1-based page number (up to 100 timesheets per page)"},
                 "order": {"type": "string", "description": "Xero `order` clause (default: 'StartDate DESC' when no filter)"},
             },
-            required=["tenant_id"],
         ),
         "annotations": {"readOnlyHint": True, "openWorldHint": True},
     },
@@ -391,11 +376,9 @@ TOOLS: list[dict[str, Any]] = [
         ),
         "inputSchema": object_schema(
             {
-                "tenant_id": {"type": "string", "description": "Xero tenant (org) UUID — required for Model C per-call org selection"},
                 "pay_run_id": {"type": "string", "description": "PayRunID UUID — list all payslips for this pay run"},
                 "payslip_id": {"type": "string", "description": "PayslipID UUID — fetch this single payslip (use instead of pay_run_id)"},
             },
-            required=["tenant_id"],
         ),
         "annotations": {"readOnlyHint": True, "openWorldHint": True},
     },
@@ -408,10 +391,9 @@ TOOLS: list[dict[str, Any]] = [
         ),
         "inputSchema": object_schema(
             {
-                "tenant_id": {"type": "string", "description": "Xero tenant (org) UUID — required for Model C per-call org selection"},
                 "employee_id": {"type": "string", "description": "EmployeeID UUID"},
             },
-            required=["tenant_id", "employee_id"],
+            required=["employee_id"],
         ),
         "annotations": {"readOnlyHint": True, "openWorldHint": True},
     },
@@ -427,7 +409,6 @@ TOOLS: list[dict[str, Any]] = [
         ),
         "inputSchema": object_schema(
             {
-                "tenant_id": {"type": "string", "description": "Xero tenant (org) UUID — overrides active tenant"},
                 "ids": {"type": "string", "description": "Comma-separated BudgetIDs to filter the list"},
             },
         ),
@@ -444,7 +425,6 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": object_schema(
             {
                 "budget_id": {"type": "string", "description": "BudgetID UUID"},
-                "tenant_id": {"type": "string", "description": "Xero tenant (org) UUID — overrides active tenant"},
                 "date_from": {"type": "string", "description": "Period start (YYYY-MM-DD)"},
                 "date_to": {"type": "string", "description": "Period end (YYYY-MM-DD)"},
             },
@@ -474,7 +454,6 @@ TOOLS: list[dict[str, Any]] = [
                 "exported_at": {"type": "string", "description": "exported_at value (default: today)"},
                 "reconcile_tolerance": {"type": "number", "default": 0.02},
                 "allow_reconcile_mismatch": {"type": "boolean", "default": False},
-                "tenant_id": {"type": "string"},
             },
             required=["from_date", "to_date", "tracking_category_id", "out_path"],
         ),
@@ -490,7 +469,7 @@ TOOLS: list[dict[str, Any]] = [
             "created before 29 April 2026 (broad-scope). Granular-scope connections (created on/after "
             "29 April 2026) cannot use this endpoint — Xero returns invalid_scope / HTTP 401. "
             "Eligible operators (pre-29-Apr-2026 connection) can opt in with: "
-            "`xero --profile <p> auth login --add journals-broad`."
+            "`xero auth login --add journals-broad`."
         ),
         "inputSchema": object_schema(
             {
@@ -505,7 +484,6 @@ TOOLS: list[dict[str, Any]] = [
                 "note": {"type": "string"},
                 "exported_at": {"type": "string"},
                 "all_accounts": {"type": "boolean", "default": False, "description": "Include balance-sheet accounts too (default: P&L only)"},
-                "tenant_id": {"type": "string"},
             },
             required=["from_date", "to_date", "out_path"],
         ),
@@ -530,7 +508,6 @@ TOOLS: list[dict[str, Any]] = [
                 "note": {"type": "string"},
                 "exported_at": {"type": "string"},
                 "include_deleted": {"type": "boolean", "default": False, "description": "Include DELETED payments (default: live only)"},
-                "tenant_id": {"type": "string"},
             },
             required=["out_path"],
         ),
@@ -551,7 +528,6 @@ TOOLS: list[dict[str, Any]] = [
                 "source_report": {"type": "string"},
                 "note": {"type": "string"},
                 "exported_at": {"type": "string"},
-                "tenant_id": {"type": "string"},
             },
             required=["out_path"],
         ),
@@ -572,7 +548,6 @@ TOOLS: list[dict[str, Any]] = [
                 "source_report": {"type": "string"},
                 "note": {"type": "string"},
                 "exported_at": {"type": "string"},
-                "tenant_id": {"type": "string"},
             },
             required=["out_path"],
         ),
@@ -709,7 +684,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
             raise XeroPluginMcpError("xero_snapshots fetch requires kind.")
         command = xero_cli_base(args) + ["snapshots", "fetch", str(arguments["kind"])]
         add_optional(command, "--where", arguments.get("where"))
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--snapshots", arguments.get("snapshots"))
         return command
 
@@ -724,7 +698,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
     if name == "xero_audit_check_live":
         command = xero_cli_base(args) + ["audit", "check-live", str(arguments["kind"]), str(arguments["value"])]
         add_optional(command, "--field", arguments.get("field"))
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--limit", arguments.get("limit"))
         return command
 
@@ -751,7 +724,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
             ]
         else:
             raise XeroPluginMcpError("xero_evidence_attachments action must be list or download.")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_evidence_audit":
@@ -759,7 +731,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         kinds = arguments.get("kinds") or ["bill"]
         command.extend(["--kinds", *[str(kind) for kind in kinds]])
         add_optional(command, "--out", arguments.get("out_path"))
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_bills_inbox":
@@ -770,7 +741,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         if arguments.get("with_attachments"):
             command.append("--with-attachments")
         add_optional(command, "--limit", arguments.get("limit"))
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_bills_review":
@@ -783,7 +753,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
             command.append("--no-download")
         add_optional(command, "--max-pages", arguments.get("max_pages"))
         add_optional(command, "--rules", arguments.get("rules"))
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_bills_learn":
@@ -813,7 +782,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--preflight-report", arguments.get("preflight_report"))
         if arguments.get("confirm_apply_without_preflight"):
             command.append("--confirm-apply-without-preflight")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--actor", arguments.get("actor"))
         add_optional(command, "--audit-dir", arguments.get("audit_dir"))
         return command
@@ -830,7 +798,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--preflight-report", arguments.get("preflight_report"))
         if arguments.get("confirm_apply_without_preflight"):
             command.append("--confirm-apply-without-preflight")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--actor", arguments.get("actor"))
         add_optional(command, "--audit-dir", arguments.get("audit_dir"))
         return command
@@ -843,7 +810,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--preflight-report", arguments.get("preflight_report"))
         if arguments.get("confirm_apply_without_preflight"):
             command.append("--confirm-apply-without-preflight")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--actor", arguments.get("actor"))
         add_optional(command, "--audit-dir", arguments.get("audit_dir"))
         return command
@@ -857,7 +823,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--preflight-report", arguments.get("preflight_report"))
         if arguments.get("confirm_apply_without_preflight"):
             command.append("--confirm-apply-without-preflight")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--actor", arguments.get("actor"))
         add_optional(command, "--audit-dir", arguments.get("audit_dir"))
         return command
@@ -870,16 +835,12 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--preflight-report", arguments.get("preflight_report"))
         if arguments.get("confirm_apply_without_preflight"):
             command.append("--confirm-apply-without-preflight")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--actor", arguments.get("actor"))
         add_optional(command, "--audit-dir", arguments.get("audit_dir"))
         return command
 
     if name == "xero_payroll_pay_runs":
-        if not arguments.get("tenant_id"):
-            raise XeroPluginMcpError("xero_payroll_pay_runs requires tenant_id.")
         command = xero_cli_base(args) + ["payroll", "list-pay-runs"]
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--from", arguments.get("from_date"))
         add_optional(command, "--to", arguments.get("to_date"))
         add_optional(command, "--where", arguments.get("where"))
@@ -887,10 +848,7 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         return command
 
     if name == "xero_payroll_timesheets":
-        if not arguments.get("tenant_id"):
-            raise XeroPluginMcpError("xero_payroll_timesheets requires tenant_id.")
         command = xero_cli_base(args) + ["payroll", "list-timesheets"]
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--from", arguments.get("from_date"))
         add_optional(command, "--to", arguments.get("to_date"))
         add_optional(command, "--employee", arguments.get("employee_id"))
@@ -901,29 +859,22 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         return command
 
     if name == "xero_payroll_payslip":
-        if not arguments.get("tenant_id"):
-            raise XeroPluginMcpError("xero_payroll_payslip requires tenant_id.")
         if not arguments.get("pay_run_id") and not arguments.get("payslip_id"):
             raise XeroPluginMcpError("xero_payroll_payslip requires either pay_run_id or payslip_id.")
         if arguments.get("payslip_id"):
             command = xero_cli_base(args) + ["payroll", "get-payslip", "--payslip-id", str(arguments["payslip_id"])]
         else:
             command = xero_cli_base(args) + ["payroll", "list-payslips", "--pay-run-id", str(arguments["pay_run_id"])]
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_payroll_employee_pay_template":
-        if not arguments.get("tenant_id"):
-            raise XeroPluginMcpError("xero_payroll_employee_pay_template requires tenant_id.")
         if not arguments.get("employee_id"):
             raise XeroPluginMcpError("xero_payroll_employee_pay_template requires employee_id.")
         command = xero_cli_base(args) + ["payroll", "employee-pay-template", "--employee-id", str(arguments["employee_id"])]
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_budgets_list":
         command = xero_cli_base(args) + ["budgets", "list"]
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--ids", arguments.get("ids"))
         return command
 
@@ -931,7 +882,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         if not arguments.get("budget_id"):
             raise XeroPluginMcpError("xero_budgets_get requires budget_id.")
         command = xero_cli_base(args) + ["budgets", "get", str(arguments["budget_id"])]
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         add_optional(command, "--date-from", arguments.get("date_from"))
         add_optional(command, "--date-to", arguments.get("date_to"))
         return command
@@ -962,7 +912,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--reconcile-tolerance", arguments.get("reconcile_tolerance"))
         if arguments.get("allow_reconcile_mismatch"):
             command.append("--allow-reconcile-mismatch")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_export_account_transactions":
@@ -990,7 +939,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--exported-at", arguments.get("exported_at"))
         if arguments.get("all_accounts"):
             command.append("--all-accounts")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_export_payments":
@@ -1009,7 +957,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--exported-at", arguments.get("exported_at"))
         if arguments.get("include_deleted"):
             command.append("--include-deleted")
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name in ("xero_export_aged_receivables", "xero_export_aged_payables"):
@@ -1021,7 +968,6 @@ def build_cli_command(name: str, arguments: dict[str, Any], temp: Path, args: ar
         add_optional(command, "--source-report", arguments.get("source_report"))
         add_optional(command, "--note", arguments.get("note"))
         add_optional(command, "--exported-at", arguments.get("exported_at"))
-        add_optional(command, "--tenant-id", arguments.get("tenant_id"))
         return command
 
     if name == "xero_reconcile_cdp":

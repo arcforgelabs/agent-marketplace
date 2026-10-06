@@ -48,14 +48,25 @@ Existing direct callbacks remain supported with an explicit `--redirect-uri`
 adopt the shared callback. Direct callbacks must already be registered with Xero.
 
 Tokens remain in the connector's local protected store. Do not put tokens,
-tenant IDs, installation credentials, or populated profiles in this package.
+tenant IDs, installation credentials, or populated profile packs in this package.
+
+## One connection, one organisation
+
+Each installation holds one Xero connection and acts only on its pinned
+organisation. A login keeps an existing pin that is still authorised, and
+pins the organisation itself only when the grant covers exactly one. Otherwise
+nothing is pinned and every API call refuses until an operator runs
+`xero tenants use <tenant-id>`. Nothing falls back to another
+organisation, and agent tools take no tenant argument. A leftover registry from
+the retired multi-business layout makes every command refuse until it is
+removed.
 
 ## Shared MCP server (0.4+)
 
 The `xero` MCP server is one shared streamable-HTTP server at
 `http://127.0.0.1:8796/mcp`. It is not a stdio process per agent session.
 Every session on the Gateway shares one backend chain: the official Xero Node
-server and the workflows companion, per business. Stdio MCP runtimes are
+server and the workflows companion. Stdio MCP runtimes are
 session-scoped in OpenClaw and stay alive until the session is reset, so the
 old per-session chain grew with the number of sessions.
 
@@ -67,6 +78,18 @@ and a Gateway restart. If an operator already runs the systemd unit
 (`xero-mcp service install`), the plugin stands down. Set
 `plugins.entries.arcforgelabs-xero.config.sharedServiceAutoStart` to `false`
 to require an external server.
+
+The server starts its backend chain as soon as it starts. New sessions do
+not wait for it: `initialize` answers at once and `tools/list` comes from the
+tool catalogue cached on disk, refreshed whenever a backend comes up with a
+changed list. Only the first start after an install or upgrade, with no cache
+yet, holds `tools/list`, for at most 8 seconds.
+
+Timeouts: `connectionTimeoutMs` is 5 s, so a wedged server costs a new session
+at most 5 s. `requestTimeoutMs` stays 130 s because OpenClaw 9.8 applies it to
+tool calls too, and a call can queue for up to 120 s on the account-wide
+operation lock. OpenClaw also uses it as the tool-listing timeout, but listing
+answers from the cache.
 
 The server binds loopback only and checks `Host`/`Origin`. Tokens never
 reach it through the environment; they stay in the encrypted local store.
