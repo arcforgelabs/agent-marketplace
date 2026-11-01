@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Explainer kit</title>
+<link rel="stylesheet" href="../kit/tokens.css">
+<link rel="stylesheet" href="../kit/explainer.css">
+</head>
+<body class="ex-page">
+<nav class="ex-rail" aria-label="Sections"></nav>
+<div class="ex-shell">
+<section class="ex-section" style="padding-top:0">
+  <div class="ex-title"><h1>Explainer kit</h1><p>An explainer page explains a system with visuals first. Every main part opens a pop-up with a definition and several facts.</p><div class="ex-meta">Chart ratings 19 October 2026 · Themes 22 October 2026</div></div>
+</section>
+
+<section class="ex-section" id="build">
+  <div class="ex-head"><span class="ex-n">01</span><h2>How a page works</h2><p>A page is the page data plus four kit files. The switch shows the same parts as a table.</p></div>
+  <div id="fig-build"></div>
+  <details class="ex-facts" data-def="A page is built from page data, the chart module, and the runtime."></details>
+</section>
+
+<section class="ex-section" id="where">
+  <div class="ex-head"><span class="ex-n">02</span><h2>Where a page goes</h2><p>One page source can be opened in more than one place. The switch shows the same places as a table.</p></div>
+  <div id="fig-where"></div>
+  <details class="ex-facts" data-def="One source page can be delivered in more than one place."></details>
+</section>
+
+<section class="ex-section" id="pick">
+  <div class="ex-head"><span class="ex-n">03</span><h2>Which chart to pick</h2><p>Chart Lab rated 42 chart kinds on one subject. The heatmap counts them; the switch shows the same counts as a table.</p></div>
+  <div id="fig-heat"></div>
+  <div class="ex-figure" id="fig-sankey"></div>
+  <details class="ex-facts" data-def="Chart Lab rates each kind of chart: great, good, meh, or poor."></details>
+</section>
+
+<section class="ex-section" id="cover">
+  <div class="ex-head"><span class="ex-n">04</span><h2>What the kit draws</h2><p>The chart module draws 7 of the 42 rated kinds from data. The switch shows the same counts as a table.</p></div>
+  <div id="fig-cap"></div>
+  <details class="ex-facts" data-def="Coverage is the share of rated kinds that the chart module draws from data."></details>
+</section>
+
+<section class="ex-section" id="theme">
+  <div class="ex-head"><span class="ex-n">05</span><h2>How the theme is chosen</h2><p>A theme is one set of tokens for the page. The switch lists the same four sources as a table.</p></div>
+  <div id="fig-theme"></div>
+  <details class="ex-facts" data-def="The theme engine picks one theme from four sources, in order."></details>
+</section>
+
+<section class="ex-section" id="views">
+  <div class="ex-head"><span class="ex-n">06</span><h2>One data set, two families</h2><p>The bars show how many tokens sit in each group. The switch shows the same groups as a table.</p></div>
+  <div id="fig-views"></div>
+  <details class="ex-facts" data-def="The token contract is the list of names that every theme sets."></details>
+</section>
+
+<section class="ex-section" id="history">
+  <div class="ex-head"><span class="ex-n">07</span><h2>How the kit grew</h2><p>A timeline puts dated changes on a real time scale. Use it for history, never a table of dates.</p></div>
+  <div class="ex-figure" id="fig-history"></div>
+</section>
+
+<section class="ex-section" id="causes">
+  <div class="ex-head"><span class="ex-n">08</span><h2>Why a page fills with tables</h2><p>A tree shows one result and the causes under it. Use it for causes, ownership or a breakdown.</p></div>
+  <div class="ex-figure" id="fig-causes"></div>
+</section>
+
+<section class="ex-section" id="tabs">
+  <div class="ex-head"><span class="ex-n">09</span><h2>One figure per option</h2><p>Tabs switch between items of the same kind. The reader picks one; the page does not stack them.</p></div>
+  <div id="fig-tabs"></div>
+</section>
+<section class="ex-section" id="drawn">
+  <div class="ex-head"><span class="ex-n">10</span><h2>Hand-drawn parts</h2><p>The drawing module gives icons, logos, moving dots, stamps and blast rings. A page uses them to draw its own picture of the subject.</p></div>
+  <div id="fig-drawn"></div>
+  <div id="fig-rings"></div>
+  <details class="ex-facts" data-def="Hand-drawn parts are the pieces a page uses to draw a picture of its own subject."></details>
+</section>
+</div>
+
+<script src="../kit/themes.js"></script>
+<script src="../kit/charts.js"></script>
+<script src="../kit/draw.js"></script>
+<script src="../kit/canvas.js"></script>
+<script>
+window.EX = {
+  "data": {"t": "Page data", "l": "Page", "d": "Page data is the set of entries that name every part on the page.", "x": [
+    "Page data exists so the drawing and the pop-ups share one definition.",
+    "Each entry holds a title, a layer, a definition, and facts.",
+    "The chart module reads the entries while it draws, and the runtime reads them on a click.",
+    "A main entry on this page holds about 4 to 8 facts.",
+    "A click does nothing when the entry is missing.",
+    "The shape of an entry is in the skill file, under Make a page."
+  ]},
+  "charts": {"t": "charts.js", "l": "Kit", "d": "charts.js is the module that draws the charts from data.", "x": [
+    "It exists so a page can draw a rated chart without drawing each box by hand.",
+    "It writes a vector graphic and a hot area for every part.",
+    "It connects page data to the runtime, and it must run before the runtime.",
+    "It draws 7 of the 42 rated kinds, plus bars, a table, tabs, and a view switch.",
+    "A kind with no renderer here is copied by hand from references/chart-lab.html.",
+    "The kind list is in references/charts.md."
+  ]},
+  "runtime": {"t": "explainer.js", "l": "Kit", "d": "explainer.js is the runtime that opens pop-ups and fills the Facts lists.", "x": [
+    "It exists so a reader can open any part without a custom script per page.",
+    "It reads page data, opens a pop-up beside the part, and builds the tick rail.",
+    "It runs after the chart module, so every hot area is already on the page.",
+    "It adds 1 theme button.",
+    "A pop-up fails when the chart module ran too late and the hot area is missing.",
+    "The source is kit/explainer.js."
+  ]},
+  "tokens": {"t": "tokens.css", "l": "Kit", "d": "tokens.css is the file of colours, fonts, and corner radii for the page.", "x": [
+    "It exists so every theme speaks the same names.",
+    "It sets light values and dark values, and it holds the diagram colour key.",
+    "The style sheet and the charts read these names. They do not invent colours.",
+    "The groups on this page sum to 27 names.",
+    "A page fails the check when it writes a colour as a hex value.",
+    "The names are listed in kit/tokens.css."
+  ]},
+  "styles": {"t": "explainer.css", "l": "Kit", "d": "explainer.css is the style sheet for every explainer part.", "x": [
+    "It exists so pages share one layout.",
+    "It styles the shell, the figures, the pop-up, and the Facts list.",
+    "It reads tokens only. It takes no colours of its own.",
+    "The shell is at most 1040 pixels wide.",
+    "A rule that names a raw colour breaks the token contract.",
+    "The source is kit/explainer.css."
+  ]},
+  "pop": {"t": "Pop-up", "l": "Reader", "d": "A pop-up shows one part, with the definition first and the facts after it.", "x": [
+    "The pop-up exists so depth stays off the open page.",
+    "It shows the title, the definition, then about 4 to 8 facts for a main part.",
+    "The runtime opens it beside the part the reader clicked.",
+    "Escape, an outside click, or the same part again closes it.",
+    "It fails the page when it repeats the definition in the facts, or when a main part has only one fact.",
+    "The behaviour is in kit/explainer.js."
+  ]},
+  "e.svg": {"t": "Hot areas", "l": "Link", "d": "A hot area is the invisible target that makes one drawn part open.", "x": [
+    "Hot areas exist so a click can find the part under the drawing.",
+    "The chart module writes a vector graphic, then lays a transparent target over each part.",
+    "Each target connects the drawing to one entry in the page data.",
+    "The first figure puts a target on each of its 6 boxes.",
+    "A part with no target never opens.",
+    "kit/charts.js writes the targets before the runtime starts."
+  ]},
+  "z.kit": {"t": "Kit", "l": "Source", "d": "The kit is the four files that draw and open the page.", "x": [
+    "The kit exists so every explainer page shares one implementation.",
+    "The four files are tokens.css, explainer.css, charts.js, and explainer.js.",
+    "Agents copy the kit next to a page. They do not rewrite it for one subject.",
+    "A fifth file, themes.js, holds the theme registry and is loaded with the kit.",
+    "Pages drift when someone keeps a private copy and edits it alone.",
+    "The file list is in the skill file, under Files."
+  ]},
+  "z.out": {"t": "Outputs", "l": "Delivery", "d": "An output is a place where a reader can open the same page.", "x": [
+    "Outputs exist so one source page can meet the reader where they already are.",
+    "This page names 3 outputs: a bundled file, a folder server, and a docs site.",
+    "The kit feeds all 3. Only the delivery step changes.",
+    "A reader should see the same parts in each output.",
+    "An output fails when a kit path points outside that place.",
+    "The three deliveries are in the skill file, under Deliver the page."
+  ]},
+  "z.ref": {"t": "References", "l": "Rules", "d": "References are the written rules a page follows.", "x": [
+    "References exist so a page does not invent a new visual language.",
+    "This kit points at the pattern, the chart catalogue, and the diagram colour key.",
+    "They connect the drawing to the rules for views, facts, and colour.",
+    "The catalogue rates 42 kinds.",
+    "A page that skips them tends to draw one flow chart and stop.",
+    "Start with references/pattern.md."
+  ]},
+  "o.art": {"t": "Bundled file", "l": "Output", "d": "A bundled file is one web page with the kit copied inside it.", "x": [
+    "The bundled file exists so a chat can open the page without the kit folder.",
+    "A bundle step copies the kit files into that one page.",
+    "It connects the kit to a reader who does not have this folder.",
+    "The result is 1 file.",
+    "The page fails when a kit path is left pointing outside the file.",
+    "The step is scripts/bundle, described in the skill file."
+  ]},
+  "o.local": {"t": "Folder server", "l": "Output", "d": "A folder server is this skill folder opened in a browser on the same computer.", "x": [
+    "It exists so an agent can read the page while editing it.",
+    "You start a small web server in the skill folder and open the examples folder.",
+    "It connects the kit files to the browser by their real paths.",
+    "The skill file uses port 8765 for that server.",
+    "The page fails when the server starts in the wrong folder, and the kit paths break.",
+    "The skill file names this output under Deliver the page."
+  ]},
+  "o.site": {"t": "Docs site", "l": "Output", "d": "A docs site is a product's own documentation site.", "x": [
+    "It exists so readers of that product can open the page with the product's other docs.",
+    "You copy the kit into the site's assets and link the files from the page.",
+    "It connects one copy of the kit to every explainer on that site.",
+    "Keep 1 copy of the kit per site.",
+    "The pages drift when a second copy of the kit is edited on its own.",
+    "The skill file names this output under Deliver the page."
+  ]},
+  "r.pattern": {"t": "Pattern rules", "l": "Reference", "d": "The pattern is the page rule book for explainers.", "x": [
+    "It exists so every page chooses views, words, and pop-ups the same way.",
+    "It requires a primary view and a second view from another family.",
+    "It connects a chart kind to the families structure, time, amount, hierarchy, and comparison.",
+    "A main pop-up needs about 4 to 8 facts after the definition.",
+    "A page fails the pattern when it draws one connection diagram and stops.",
+    "The text is references/pattern.md."
+  ]},
+  "r.charts": {"t": "Chart catalogue", "l": "Reference", "d": "The chart catalogue is the rated list of chart kinds.", "x": [
+    "It exists so a page picks a kind that Chart Lab already scored.",
+    "Each row names the kind, its family, its tier, and a short note.",
+    "It connects Chart Lab to the renderer in charts.js, when one exists.",
+    "The list holds 42 kinds: 7 great, 18 good, 14 meh, and 3 poor.",
+    "Use great or good. Use meh only with the fix in its note. Do not use poor.",
+    "The list is references/charts.md."
+  ]},
+  "r.key": {"t": "Diagram colour key", "l": "Reference", "d": "The diagram colour key gives one meaning to each box colour.", "x": [
+    "It exists so the same colour means the same thing on every page.",
+    "A theme changes the hue. It does not change the meaning.",
+    "It connects the token file to every diagram that marks a family of parts.",
+    "The key is separate from the five chart-series colours.",
+    "A page fails when it uses a series colour to mean a diagram family, or the reverse.",
+    "The values are copied into kit/tokens.css. Do not invent new meanings here."
+  ]},
+  "t.pick": {"t": "Viewer's pick", "l": "First", "d": "The viewer's pick is the theme chosen in the menu for this view.", "x": [
+    "It exists so the reader can change the page without editing it.",
+    "The theme button lists the themes, and a click applies one at once.",
+    "It connects the reader to the theme engine as the first of 4 sources.",
+    "It lasts until the tab closes.",
+    "It wins over the saved default, the page theme, and Arc Forge.",
+    "The order is in the skill file, under Pick the theme."
+  ]},
+  "t.default": {"t": "Saved default", "l": "Second", "d": "The saved default is the theme the viewer set with Set as default.", "x": [
+    "It exists so the next page can open in the theme the viewer already chose.",
+    "The menu writes it when the viewer chooses Set as default.",
+    "It connects to the theme engine as the second source, after the pick for this view.",
+    "It is kept in the browser on this computer.",
+    "When the page is allowed to save for the viewer, it is also kept with that viewer.",
+    "It loses when the viewer has already picked a theme for this view."
+  ]},
+  "t.page": {"t": "Page theme", "l": "Third", "d": "The page theme is the theme the author chose for the content.", "x": [
+    "It exists so the page starts in a theme that fits the subject.",
+    "The page names it in the ex-theme meta tag.",
+    "It connects to the theme engine as the third source.",
+    "This kit page names Arc Forge.",
+    "It loses when the viewer has a pick or a saved default.",
+    "The choice rules are in the skill file, under Pick the theme."
+  ]},
+  "t.fb": {"t": "Arc Forge", "l": "Fourth", "d": "Arc Forge is the fallback theme, used when no other theme is chosen.", "x": [
+    "It exists so the page has colours before the reader picks a theme.",
+    "Its light and dark values live in the token file, and the page shows them before the runtime starts.",
+    "It connects to the theme engine as the fourth source.",
+    "It is 1 of 4 themes in the registry.",
+    "It loses when the viewer has a pick, a saved default, or a page theme.",
+    "The values are in kit/tokens.css."
+  ]},
+  "t.engine": {"t": "Theme engine", "l": "Kit", "d": "The theme engine is the part of the runtime that applies a theme.", "x": [
+    "It exists so the page has one place that changes theme.",
+    "It adds one theme button, previews a theme on hover or focus, and draws every chart again after a change.",
+    "It reads the four sources in order, then the registry.",
+    "A page is allowed 1 theme button.",
+    "A second switcher on a component fights this one and is not allowed.",
+    "The source is the theme engine inside kit/explainer.js."
+  ]},
+  "t.reg": {"t": "themes.js", "l": "Kit", "d": "themes.js is the theme registry: one token set for each theme.", "x": [
+    "It exists so the theme engine can apply a theme by name.",
+    "A sync step writes it from the theme catalogue and from Flow.",
+    "It connects those sources to the token names the page already uses.",
+    "This copy holds 4 themes.",
+    "Hand edits are lost the next time the sync step runs.",
+    "The file is kit/themes.js."
+  ]},
+  "t.out": {"t": "Page tokens", "l": "Page", "d": "Page tokens are the named values for colour, type, and shape that every part reads.", "x": [
+    "They exist so a theme can change the page without rewriting the charts.",
+    "The theme engine sets them on the root element when a theme is chosen.",
+    "They connect a theme in the registry to every figure on the page.",
+    "The groups drawn below sum to 27 names.",
+    "A part that ignores them and writes a raw colour breaks the theme.",
+    "The names are in kit/tokens.css."
+  ]},
+  "fam.boxes": {"t": "Boxes and arrows", "l": "Family", "d": "Boxes and arrows is the family of charts that show parts and the links between them.", "x": [
+    "This family exists so a reader can pick a structure view.",
+    "Chart Lab grouped 10 of the 42 kinds here.",
+    "The tiers are 3 great, 4 good, 3 meh, and 0 poor.",
+    "A connection diagram and a container diagram both sit in this family.",
+    "Pair a chart from this family with a view from time, amount, hierarchy, or comparison.",
+    "The kinds and notes are in references/charts.md."
+  ]},
+  "fam.amounts": {"t": "Amounts", "l": "Family", "d": "Amounts is the family of charts that show how much, or how much against a limit.", "x": [
+    "This family exists so a reader can see size, share, or a limit.",
+    "Chart Lab grouped 11 of the 42 kinds here.",
+    "The tiers are 3 great, 3 good, 4 meh, and 1 poor.",
+    "The heatmap, the Sankey, and the capacity bars sit in this family.",
+    "When amounts are the primary view, add the alternative from structure, time, hierarchy, or comparison.",
+    "The kinds and notes are in references/charts.md."
+  ]},
+  "fam.networks": {"t": "Networks", "l": "Family", "d": "Networks is the family of charts that show many linked parts at once.", "x": [
+    "This family exists for subjects with too many links for a small box diagram.",
+    "Chart Lab grouped 12 of the 42 kinds here, the largest family.",
+    "The tiers are 1 great, 7 good, 4 meh, and 0 poor.",
+    "Most of the good kinds are network kinds: 7 of the 18 good kinds.",
+    "These charts get hard to read when the labels are missing or the motion never rests.",
+    "The kinds and notes are in references/charts.md."
+  ]},
+  "fam.hier": {"t": "Hierarchy", "l": "Family", "d": "Hierarchy is the family of charts that show parent and child, or cause and effect.", "x": [
+    "This family exists when the subject is a tree or a set of causes.",
+    "Chart Lab grouped 5 of the 42 kinds here.",
+    "The tiers are 0 great, 2 good, 3 meh, and 0 poor.",
+    "The good kinds are the tree and fishbone version 2.",
+    "There is no great hierarchy chart in this round, so pick a good one and add another family.",
+    "The kinds and notes are in references/charts.md."
+  ]},
+  "fam.time": {"t": "Time and order", "l": "Family", "d": "Time and order is the family of charts that place events on a real time scale or in sequence.", "x": [
+    "This family exists when the subject is a wait, a duration, or an order.",
+    "Chart Lab grouped 4 of the 42 kinds here, the smallest family.",
+    "The tiers are 0 great, 2 good, 0 meh, and 2 poor.",
+    "The good kinds are the timeline and the snake flow.",
+    "Chip lanes and the scroll story are poor. Do not use them for a main view.",
+    "The kinds and notes are in references/charts.md."
+  ]},
+  "tier.great": {"t": "Great", "l": "Tier", "d": "Great is the top rating in Chart Lab.", "x": [
+    "A great rating means the chart stayed clear on the shared test subject.",
+    "7 of the 42 kinds are rated great.",
+    "They sit in boxes and arrows (3), amounts (3), and networks (1).",
+    "Hierarchy and time have no great kind in this round.",
+    "A great chart still fails when the data does not match the kind.",
+    "The chart module draws 3 of these 7 from data.",
+    "The list is in references/charts.md."
+  ]},
+  "tier.good": {"t": "Good", "l": "Tier", "d": "Good is the second rating in Chart Lab.", "x": [
+    "A good rating means the chart worked, with a narrower best use than a great one.",
+    "18 of the 42 kinds are rated good.",
+    "They sit in every family: 4, 3, 7, 2, and 2.",
+    "The connection diagram is in this tier. Use it when connections are the best way to show the subject.",
+    "Use a good kind when no great kind fits the subject.",
+    "The chart module draws 4 of these 18 from data.",
+    "The list is in references/charts.md."
+  ]},
+  "tier.meh": {"t": "Meh", "l": "Tier", "d": "Meh is the third rating in Chart Lab.", "x": [
+    "A meh rating means the chart needs the fix in its note before anyone uses it.",
+    "14 of the 42 kinds are rated meh.",
+    "Sequence diagrams are in this tier, and the note says not to use them.",
+    "A meh kind without its fix reads as a poor chart.",
+    "The chart module draws none of these 14 from data.",
+    "The fixes are in references/charts.md."
+  ]},
+  "tier.poor": {"t": "Poor", "l": "Tier", "d": "Poor is the lowest rating in Chart Lab.", "x": [
+    "A poor rating means the chart failed the shared test subject.",
+    "3 of the 42 kinds are rated poor.",
+    "They are the layer stack, chip lanes, and the scroll story.",
+    "Chip lanes only group things. They do not show a connection.",
+    "Do not use a poor kind for a primary view or for the alternative view.",
+    "The reasons are in references/charts.md."
+  ]},
+  "cov.great": {"t": "Great kinds in the chart module", "l": "Coverage", "d": "The chart module draws 3 of the 7 great kinds from data.", "x": [
+    "These 3 exist so a page can show a top-rated chart without drawing it by hand.",
+    "The module draws the container diagram, the heatmap, and the Sankey.",
+    "They connect the great tier to kit/charts.js.",
+    "3 of 7 great kinds is 3 of 42 in the catalogue, about 7 percent.",
+    "The other 4 great kinds are copied by hand from references/chart-lab.html.",
+    "references/charts.md names the renderer for each kind."
+  ]},
+  "cov.good": {"t": "Good kinds in the chart module", "l": "Coverage", "d": "The chart module draws 4 of the 18 good kinds from data.", "x": [
+    "These 4 exist so structure, amount, time, and hierarchy views are all available from data.",
+    "The module draws the connection diagram, the capacity bars, the timeline, and the tree.",
+    "They connect the good tier to kit/charts.js.",
+    "4 of 18 good kinds is 4 of 42 in the catalogue, about 10 percent.",
+    "A connection diagram still needs a second view from another family.",
+    "references/charts.md names the renderer for each kind."
+  ]},
+  "tok.surfaces": {"t": "Surfaces and text", "l": "Token group", "d": "Surfaces and text are the colours of the page, the cards, the words, and the lines.", "x": [
+    "This group exists so the page, the cards, and the type share named colours.",
+    "The names are bg-accent, card, text, text-strong, muted, border, and border-strong.",
+    "The accents group sits next to it. Ring is counted there, not here.",
+    "The group holds 7 of the 27 names in this contract, about 26 percent.",
+    "A theme that skips one of the 7 leaves a part with no colour.",
+    "The list is in kit/tokens.css."
+  ]},
+  "tok.accents": {"t": "Accents", "l": "Token group", "d": "Accents mark the one key thing and a second family.", "x": [
+    "This group exists so one thing can be red and a second family can be steel.",
+    "The names are ring, accent, accent-subtle, on-accent, accent-2, and accent-2-subtle.",
+    "They connect the diagram colour rule to the theme the reader picked.",
+    "The group holds 6 of the 27 names, about 22 percent.",
+    "Red on more than one or two things breaks the rule that red marks the first thing to see.",
+    "The list is in kit/tokens.css."
+  ]},
+  "tok.series": {"t": "Chart series", "l": "Token group", "d": "Chart series are the colours of data series in charts.", "x": [
+    "This group exists so bars and bands can be told apart.",
+    "The names run from series-1 to series-5.",
+    "They stay separate from the diagram colour key. A box meaning never uses a series colour.",
+    "The group holds 5 of the 27 names, about 19 percent.",
+    "A sixth series has no name in the contract. Split the chart or group the data.",
+    "The list is in kit/tokens.css."
+  ]},
+  "tok.shape": {"t": "Shape and type", "l": "Token group", "d": "Shape and type are the corner radii and the font stacks.", "x": [
+    "This group exists so corners and type change with the theme.",
+    "The names are radius-sm, radius-md, radius-lg, radius-full, font-body, font-display, and font-mono.",
+    "The theme registry replaces these values. The page does not hard-code a font.",
+    "The group holds 7 of the 27 names, about 26 percent.",
+    "A page that sets its own font ignores the theme the reader chose.",
+    "The list is in kit/tokens.css."
+  ]},
+  "tok.shadows": {"t": "Shadows", "l": "Token group", "d": "Shadows lift the pop-up and the theme menu off the page.", "x": [
+    "This group exists so floating parts read as above the page.",
+    "The names are shadow-md and shadow-lg.",
+    "The pop-up uses the larger shadow. The menu uses it too.",
+    "The group holds 2 of the 27 names, about 7 percent.",
+    "The heatmap scale and the diagram colour key sit outside this count of 27.",
+    "The list is in kit/tokens.css."
+  ]}
+};
+
+ExCharts.views(document.getElementById('fig-build'), {label: 'Kit parts', views: [
+  {id: 'figure', label: 'Diagram', draw: function (b) { ExCharts.connection(b, {
+    label: 'How a page works', cols: ['Source', 'Kit', 'Runtime', 'Reader'], boxW: 170, gapX: 110,
+    nodes: [
+      {id: 'data', col: 0, row: 0, title: 'Page data', sub: 'part entries', ex: 'data'},
+      {id: 'tokens', col: 0, row: 1, title: 'tokens.css', sub: 'colours, fonts', ex: 'tokens'},
+      {id: 'charts', col: 1, row: 0, title: 'charts.js', sub: 'draws the charts', layer: 'alt', ex: 'charts'},
+      {id: 'styles', col: 1, row: 1, title: 'explainer.css', sub: 'page styles', ex: 'styles'},
+      {id: 'runtime', col: 2, row: 0, title: 'explainer.js', sub: 'runtime', layer: 'alt', ex: 'runtime'},
+      {id: 'pop', col: 3, row: 0, title: 'Pop-up', sub: 'definition first', layer: 'key', ex: 'pop'}
+    ],
+    edges: [
+      {from: 'data', to: 'charts', label: 'parts'},
+      {from: 'tokens', to: 'styles', label: 'values'},
+      {from: 'charts', to: 'runtime', label: 'hot areas', ex: 'e.svg'},
+      {from: 'styles', to: 'runtime', label: 'styles', offset: 14},
+      {from: 'runtime', to: 'pop', label: 'click', layer: 'key'}
+    ]
+  }); }},
+  {id: 'table', label: 'Table', draw: function (b) { ExCharts.table(b, {
+    cols: ['Part', 'Job', 'Connects to', 'Stops when'],
+    rows: [
+      {cells: ['Page data', 'Names every part', 'Chart module', 'An entry is missing'], ex: 'data'},
+      {cells: ['tokens.css', 'Holds the colour names', 'explainer.css', 'A raw colour is written'], ex: 'tokens'},
+      {cells: ['charts.js', 'Draws the charts', 'The runtime', 'It runs too late'], ex: 'charts'},
+      {cells: ['explainer.css', 'Styles the parts', 'The tokens', 'It invents a colour'], ex: 'styles'},
+      {cells: ['explainer.js', 'Opens pop-ups', 'The hot areas', 'A target is missing'], ex: 'runtime'},
+      {cells: ['Pop-up', 'Holds the depth', 'One part', 'The facts repeat the definition'], ex: 'pop'}
+    ]
+  }); }}
+]});
+
+ExCharts.views(document.getElementById('fig-where'), {label: 'Where the kit sits', views: [
+  {id: 'figure', label: 'Diagram', draw: function (b) { ExCharts.container(b, {
+    label: 'Where a page goes', zoneCols: 3, perRow: 1, itemW: 220,
+    zones: [
+      {title: 'Kit', ex: 'z.kit', items: [
+        {title: 'tokens.css', ex: 'tokens'}, {title: 'explainer.css', ex: 'styles'},
+        {title: 'charts.js', layer: 'alt', ex: 'charts'}, {title: 'explainer.js', layer: 'alt', ex: 'runtime'}]},
+      {title: 'Outputs', ex: 'z.out', items: [
+        {title: 'Bundled file', sub: 'one file', ex: 'o.art'},
+        {title: 'Folder server', sub: 'same computer', ex: 'o.local'},
+        {title: 'Docs site', sub: 'copy the kit', layer: 'off', ex: 'o.site'}]},
+      {title: 'References', ex: 'z.ref', items: [
+        {title: 'Pattern rules', ex: 'r.pattern'}, {title: 'Chart catalogue', ex: 'r.charts'},
+        {title: 'Diagram colour key', sub: 'fixed meanings', ex: 'r.key'}]}
+    ]
+  }); }},
+  {id: 'table', label: 'Table', draw: function (b) { ExCharts.table(b, {
+    cols: ['Place', 'What the reader gets', 'What you copy', 'Stops when'],
+    rows: [
+      {cells: ['Bundled file', 'One web page', 'The kit, inlined', 'A path points outside'], ex: 'o.art'},
+      {cells: ['Folder server', 'The folder in a browser', 'Nothing', 'The server is in the wrong folder'], ex: 'o.local'},
+      {cells: ['Docs site', 'A page on the product site', 'One kit into the assets', 'A second kit is edited alone'], ex: 'o.site'}
+    ]
+  }); }}
+]});
+
+var FAMILIES = [
+  {id: 'boxes', title: 'Boxes and arrows', ex: 'fam.boxes', tiers: {
+    great: ['Container diagram', 'Live anatomy', 'Sketch style'],
+    good: ['Connection diagram', 'State machine', 'Anatomy callout', 'Expand and collapse'],
+    meh: ['Sequence diagram', 'Keyed container diagram', 'Step-through simulation'], poor: []}},
+  {id: 'amounts', title: 'Amounts', ex: 'fam.amounts', tiers: {
+    great: ['Heatmap', 'Parallel sets', 'Sankey'],
+    good: ['Capacity bars', 'Treemap', 'Sunburst'],
+    meh: ['Ladder', 'Area chart with tooltip', 'Bump chart', 'Every token'], poor: ['Layer stack']}},
+  {id: 'networks', title: 'Networks', ex: 'fam.networks', tiers: {
+    great: ['Graphics processing unit graph'],
+    good: ['Arc diagram, version 2', 'Grouped graph', 'Grouped graph, version 2', 'Concentric', 'Particle flow graph', 'Three-dimensional graph', 'Three-dimensional graph, web graphics library'],
+    meh: ['Arc diagram', 'Chord diagram', 'Edge bundling', 'Hive plot'], poor: []}},
+  {id: 'hier', title: 'Hierarchy', ex: 'fam.hier', tiers: {
+    great: [], good: ['Tree', 'Fishbone, version 2'], meh: ['Mind map', 'Radial tree', 'Fishbone'], poor: []}},
+  {id: 'time', title: 'Time and order', ex: 'fam.time', tiers: {
+    great: [], good: ['Timeline', 'Snake flow'], meh: [], poor: ['Chip lanes', 'Scroll story, web graphics library']}}
+];
+var TIERS = [{id: 'great', title: 'Great', layer: 'key', ex: 'tier.great'}, {id: 'good', title: 'Good', layer: 'alt', ex: 'tier.good'}, {id: 'meh', title: 'Meh', ex: 'tier.meh'}, {id: 'poor', title: 'Poor', ex: 'tier.poor'}];
+function familyTotal(f) { return f.tiers.great.length + f.tiers.good.length + f.tiers.meh.length + f.tiers.poor.length; }
+function linkEx(f, t) {
+  var list = f.tiers[t.id], total = familyTotal(f);
+  return {t: f.title + ' to ' + t.title, l: 'Flow', d: 'This band is the ' + f.title.toLowerCase() + ' kinds rated ' + t.title.toLowerCase() + '.', x: [
+    'The band exists so the size of this rating is visible inside the family.',
+    'Chart Lab rated each kind, and this band counts only that family and that rating.',
+    'It connects ' + f.title.toLowerCase() + ' to the ' + t.title.toLowerCase() + ' tier.',
+    'The count is ' + list.length + ' of ' + total + ' kinds in this family, and ' + list.length + ' of 42 in the catalogue.',
+    list.length ? 'The kinds are: ' + list.join(', ') + '.' : 'No kind has this rating.',
+    'A wide band is still the wrong chart when the subject is not an amount.',
+    'The notes for each kind are in references/charts.md.'
+  ]};
+}
+
+ExCharts.views(document.getElementById('fig-heat'), {label: 'Chart ratings', views: [
+  {id: 'figure', label: 'Heatmap', draw: function (b) { ExCharts.heatmap(b, {
+    label: 'Chart kinds per family and tier', labelW: 170, cellW: 90,
+    rows: FAMILIES.map(function (f) { return f.title; }),
+    cols: TIERS.map(function (t) { return t.title; }),
+    values: FAMILIES.map(function (f) { return TIERS.map(function (t) { return f.tiers[t.id].length; }); }),
+    cellEx: function (r, c, v) {
+      var f = FAMILIES.filter(function (x) { return x.title === r; })[0], list = f.tiers[c.toLowerCase()], total = familyTotal(f);
+      return {t: r + ' · ' + c, l: 'Chart lab', d: v + (v === 1 ? ' chart kind in ' : ' chart kinds in ') + r.toLowerCase() + (v === 1 ? ' is rated ' : ' are rated ') + c.toLowerCase() + '.', x: [
+        'This cell exists so a gap or a cluster in the ratings is visible.',
+        'Chart Lab scored every kind on one subject, then this grid counted the result.',
+        'The cell connects the ' + r.toLowerCase() + ' family to the ' + c.toLowerCase() + ' rating.',
+        'The count is ' + v + ' of ' + total + ' kinds in this family, and ' + v + ' of 42 in the catalogue.',
+        list.length ? 'The kinds are: ' + list.join(', ') + '.' : 'No kind has this rating.',
+        'The shortlist for a page is the great and good kinds.',
+        'The notes are in references/charts.md.'
+      ]};
+    }
+  }); }},
+  {id: 'table', label: 'Table', draw: function (b) { ExCharts.table(b, {
+    cols: ['Family', 'Great', 'Good', 'Meh', 'Poor', 'Kinds'],
+    rows: FAMILIES.map(function (f) {
+      return {cells: [f.title, String(f.tiers.great.length), String(f.tiers.good.length), String(f.tiers.meh.length), String(f.tiers.poor.length), String(familyTotal(f))], ex: f.ex};
+    })
+  }); }}
+]});
+ExCharts.sankey(document.getElementById('fig-sankey'), {
+  label: 'Chart kinds by family and tier', unit: ' kinds', height: 360,
+  nodes: FAMILIES.map(function (f) {
+    return {id: f.id, col: 0, title: f.title, ex: f.ex};
+  }).concat(TIERS.map(function (t) {
+    return {id: t.id, col: 1, title: t.title, layer: t.layer, ex: t.ex};
+  })),
+  links: [].concat.apply([], FAMILIES.map(function (f) {
+    return TIERS.filter(function (t) { return f.tiers[t.id].length; }).map(function (t) {
+      return {from: f.id, to: t.id, value: f.tiers[t.id].length, layer: t.layer, ex: linkEx(f, t)};
+    });
+  }))
+});
+
+ExCharts.views(document.getElementById('fig-cap'), {label: 'Renderer coverage', views: [
+  {id: 'figure', label: 'Bars', draw: function (b) { ExCharts.capacity(b, {
+    label: 'Kit coverage', limit: 42, unit: '',
+    rows: [
+      {label: 'Rated kinds', parts: [
+        {label: 'Great 7', value: 7, layer: 'key', ex: 'tier.great'},
+        {label: 'Good 18', value: 18, layer: 'alt', ex: 'tier.good'},
+        {label: 'Meh 14', value: 14, ex: 'tier.meh'},
+        {label: 'Poor 3', value: 3, layer: 'off', ex: 'tier.poor'}]},
+      {label: 'charts.js', parts: [
+        {label: 'Great 3', value: 3, layer: 'key', ex: 'cov.great'},
+        {label: 'Good 4', value: 4, layer: 'alt', ex: 'cov.good'}]}
+    ]
+  }); }},
+  {id: 'table', label: 'Table', draw: function (b) { ExCharts.table(b, {
+    cols: ['Tier', 'Rated kinds', 'Share of 42', 'Drawn from data'],
+    rows: [
+      {cells: ['Great', '7', '17 percent', '3'], ex: 'tier.great'},
+      {cells: ['Good', '18', '43 percent', '4'], ex: 'tier.good'},
+      {cells: ['Meh', '14', '33 percent', '0'], ex: 'tier.meh'},
+      {cells: ['Poor', '3', '7 percent', '0'], ex: 'tier.poor'}
+    ]
+  }); }}
+]});
+
+ExCharts.views(document.getElementById('fig-theme'), {label: 'Theme sources', views: [
+  {id: 'figure', label: 'Diagram', draw: function (b) { ExCharts.connection(b, {
+    label: 'How the theme is chosen', cols: ['Source', 'Engine', 'Page'], boxW: 190, gapX: 120,
+    nodes: [
+      {id: 'pick', col: 0, row: 0, title: 'Viewer\'s pick', sub: 'this view', ex: 't.pick'},
+      {id: 'def', col: 0, row: 1, title: 'Saved default', sub: 'Set as default', ex: 't.default'},
+      {id: 'page', col: 0, row: 2, title: 'Page theme', sub: 'author choice', ex: 't.page'},
+      {id: 'fb', col: 0, row: 3, title: 'Arc Forge', sub: 'fallback', layer: 'off', ex: 't.fb'},
+      {id: 'engine', col: 1, row: 1, title: 'Theme engine', sub: 'in the runtime', layer: 'key', ex: 't.engine'},
+      {id: 'reg', col: 1, row: 3, title: 'themes.js', sub: '4 token sets', layer: 'alt', ex: 't.reg'},
+      {id: 'out', col: 2, row: 1, title: 'Page tokens', sub: 'named values', ex: 't.out'}
+    ],
+    edges: [
+      {from: 'pick', to: 'engine', label: 'first'},
+      {from: 'def', to: 'engine', label: 'second'},
+      {from: 'page', to: 'engine', label: 'third'},
+      {from: 'fb', to: 'engine', label: 'fourth', layer: 'off'},
+      {from: 'reg', to: 'engine', label: 'values'},
+      {from: 'engine', to: 'out', label: 'one theme', layer: 'key'}
+    ]
+  }); }},
+  {id: 'table', label: 'Table', draw: function (b) { ExCharts.table(b, {
+    cols: ['Order', 'Source', 'Wins when', 'Kept'],
+    rows: [
+      {cells: ['1', 'Viewer\'s pick', 'The viewer chose it for this view', 'Until the tab closes'], ex: 't.pick'},
+      {cells: ['2', 'Saved default', 'This view has no pick', 'In the browser'], ex: 't.default'},
+      {cells: ['3', 'Page theme', 'The viewer has no choice yet', 'In the page'], ex: 't.page'},
+      {cells: ['4', 'Arc Forge', 'Nothing else is set', 'In the token file'], ex: 't.fb'}
+    ]
+  }); }}
+]});
+
+ExCharts.data(document.getElementById('fig-views'), {
+  label: 'Tokens in the contract', layer: 'Token group', total: 'Contract', cols: ['Group', 'Tokens', 'Share'],
+  rows: [
+    {label: 'Surfaces and text', value: 7, ex: 'tok.surfaces'},
+    {label: 'Accents', value: 6, layer: 'key', ex: 'tok.accents'},
+    {label: 'Chart series', value: 5, ex: 'tok.series'},
+    {label: 'Shape and type', value: 7, ex: 'tok.shape'},
+    {label: 'Shadows', value: 2, ex: 'tok.shadows'}
+  ]
+});
+
+ExCharts.timeline(document.getElementById('fig-history'), {
+  label: 'Kit history', start: '2026-10-01', end: '2026-10-31',
+  events: [
+    {at: '2026-10-19', title: 'Chart Lab', sub: '42 kinds rated', ex: {t: 'Chart Lab', l: '19 OCT', d: 'Chart Lab is one page that draws 42 chart kinds on the same subject.', x: ['Each kind has a rating: great, good, meh or poor.']}},
+    {at: '2026-10-20', title: 'Kit in repo', sub: 'renderers and check', ex: {t: 'Kit in repo', l: '20 OCT', d: 'The kit moved into this repo as files any agent can read.', x: ['charts.js had seven renderers.']}},
+    {at: '2026-10-26', title: 'Timeline and tree', sub: 'tables limited', layer: 'key', ex: {t: 'Timeline and tree', l: '26 OCT', d: 'This change adds the timeline, tree and tabs renderers.', x: ['The check fails a page with more than one table shown.']}}
+  ],
+  spans: [{from: '2026-10-20', to: '2026-10-26', title: 'Tables fill the gaps', layer: 'off', ex: {t: 'Tables fill the gaps', l: 'SPAN', d: 'In this time, pages used a table where the kit had no renderer.', x: ['Dates, causes and options became rows.']}}]
+});
+
+ExCharts.tree(document.getElementById('fig-causes'), {
+  label: 'Causes of table-heavy pages', cols: ['RESULT', 'CAUSE', 'DETAIL'],
+  root: {title: 'Pages full of tables', sub: 'the result', layer: 'key', ex: {t: 'Pages full of tables', l: 'RESULT', d: 'A page full of tables shows rows where a diagram shows how things connect.', x: ['Readers must read every cell.']},
+    children: [
+      {title: 'No renderer', sub: 'for dates or causes', edge: 'kit', ex: {t: 'No renderer', l: 'CAUSE', d: 'The kit had no timeline or tree renderer.', x: ['A table took one call.']},
+        children: [{title: 'Hand-drawn SVG', sub: 'slow, so skipped', layer: 'off', ex: {t: 'Hand-drawn SVG', l: 'DETAIL', d: 'A hand-drawn SVG is a chart with no renderer.', x: ['Chart Lab holds one for each kind.']}}]},
+      {title: 'Rule allows tables', sub: '"to compare values"', edge: 'rules', ex: {t: 'Rule allows tables', l: 'CAUSE', d: 'The page rules named a table for any comparison of values.', x: ['Most subjects can be read as a comparison.']}},
+      {title: 'Check passes tables', sub: 'no limit', edge: 'check', ex: {t: 'Check passes tables', l: 'CAUSE', d: 'The headless check did not count tables.', x: ['A page with only tables passed.']}}
+    ]}
+});
+
+ExCharts.tabs(document.getElementById('fig-tabs'), {
+  label: 'Options',
+  tabs: [
+    {id: 'a', label: 'Option A', draw: function (b) { ExCharts.connection(b, {label: 'Option A', nodes: [
+      {id: 'u', col: 0, row: 0, title: 'Reader', ex: {t: 'Reader', l: 'OPTION A', d: 'The reader is the person who opens the page.', x: []}},
+      {id: 'p', col: 1, row: 0, title: 'One page', sub: 'all options', layer: 'key', ex: {t: 'One page', l: 'OPTION A', d: 'One page holds every option.', x: ['Tabs switch the figure.']}}],
+      edges: [{from: 'u', to: 'p', label: 'opens'}]}); }},
+    {id: 'b', label: 'Option B', draw: function (b) { ExCharts.connection(b, {label: 'Option B', nodes: [
+      {id: 'u', col: 0, row: 0, title: 'Reader', ex: {t: 'Reader', l: 'OPTION B', d: 'The reader is the person who opens the page.', x: []}},
+      {id: 'p', col: 1, row: 0, title: 'Two pages', sub: 'one per option', layer: 'alt', ex: {t: 'Two pages', l: 'OPTION B', d: 'Each option has its own page.', x: ['The pages link to each other.']}}],
+      edges: [{from: 'u', to: 'p', label: 'opens'}]}); }}
+  ]
+});
+
+/* 10 · Hand-drawn parts (kit/draw.js): the kit files flow into one page; the page goes to a repository and a browser. */
+var GITHUB_LOGO = 'data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+R2l0SHViPC90aXRsZT48cGF0aCBkPSJNMTIgLjI5N2MtNi42MyAwLTEyIDUuMzczLTEyIDEyIDAgNS4zMDMgMy40MzggOS44IDguMjA1IDExLjM4NS42LjExMy44Mi0uMjU4LjgyLS41NzcgMC0uMjg1LS4wMS0xLjA0LS4wMTUtMi4wNC0zLjMzOC43MjQtNC4wNDItMS42MS00LjA0Mi0xLjYxQzQuNDIyIDE4LjA3IDMuNjMzIDE3LjcgMy42MzMgMTcuN2MtMS4wODctLjc0NC4wODQtLjcyOS4wODQtLjcyOSAxLjIwNS4wODQgMS44MzggMS4yMzYgMS44MzggMS4yMzYgMS4wNyAxLjgzNSAyLjgwOSAxLjMwNSAzLjQ5NS45OTguMTA4LS43NzYuNDE3LTEuMzA1Ljc2LTEuNjA1LTIuNjY1LS4zLTUuNDY2LTEuMzMyLTUuNDY2LTUuOTMgMC0xLjMxLjQ2NS0yLjM4IDEuMjM1LTMuMjItLjEzNS0uMzAzLS41NC0xLjUyMy4xMDUtMy4xNzYgMCAwIDEuMDA1LS4zMjIgMy4zIDEuMjMuOTYtLjI2NyAxLjk4LS4zOTkgMy0uNDA1IDEuMDIuMDA2IDIuMDQuMTM4IDMgLjQwNSAyLjI4LTEuNTUyIDMuMjg1LTEuMjMgMy4yODUtMS4yMy42NDUgMS42NTMuMjQgMi44NzMuMTIgMy4xNzYuNzY1Ljg0IDEuMjMgMS45MSAxLjIzIDMuMjIgMCA0LjYxLTIuODA1IDUuNjI1LTUuNDc1IDUuOTIuNDIuMzYuODEgMS4wOTYuODEgMi4yMiAwIDEuNjA2LS4wMTUgMi44OTYtLjAxNSAzLjI4NiAwIC4zMTUuMjEuNjkuODI1LjU3QzIwLjU2NSAyMi4wOTIgMjQgMTcuNTkyIDI0IDEyLjI5N2MwLTYuNjI3LTUuMzczLTEyLTEyLTEyIi8+PC9zdmc+';
+Object.assign(window.EX, {
+  'd.page': {t: 'One page', l: 'DRAWN', d: 'The page is the one file a reader opens.', x: [
+    'It is drawn as a sheet, because a reader knows a sheet at a glance.',
+    'Four kit files flow into it; the dots show that flow.',
+    'The red outline marks it as the one key thing in the figure.',
+    'scripts/bundle puts the four files inside the page for delivery.',
+    'The same page goes to a repository, a browser or a phone.']},
+  'd.tokens': {t: 'tokens.css', l: 'KIT FILE', d: 'tokens.css holds every colour, font and corner radius.', x: [
+    'The drawing module reads colours only through classes that use these tokens.',
+    'A literal colour in a page fails scripts/check.',
+    'Each theme sets the same token names.',
+    'The icon is a gear, because the file sets the page up.']},
+  'd.charts': {t: 'charts.js', l: 'KIT FILE', d: 'charts.js draws rated chart kinds from data.', x: [
+    'It covers structure, time, amount and hierarchy views.',
+    'Its figures are correct but plain.',
+    'A page adds hand-drawn figures where the subject has its own shape.',
+    'It loads before the drawing module.']},
+  'd.draw': {t: 'draw.js', l: 'KIT FILE', d: 'draw.js gives the parts for a hand-drawn figure.', x: [
+    'It gives 32 line icons, icon discs, logo plates, arrows, moving dots, stamps, leader lines and blast rings.',
+    'Every part returns vector markup as text, so a page joins parts with plain string code.',
+    'A part with an entry key opens a pop-up like any chart part.',
+    'Moving dots stop when the reader asks for reduced motion.',
+    'The recipes are in references/creative.md.']},
+  'd.runtime': {t: 'explainer.js', l: 'KIT FILE', d: 'explainer.js opens pop-ups and adds the theme button.', x: [
+    'It loads last, after every figure is drawn.',
+    'It marks each part with an entry key as a button.',
+    'It listens for redraws, so a figure drawn later still opens.']},
+  'd.repo': {t: 'Repository', l: 'LOGO', d: 'A logo plate shows a real product with its own mark.', x: [
+    'This plate holds the GitHub mark from Simple Icons, version 13.21.0.',
+    'The plate stays light in dark mode, because most marks are drawn for a light ground.',
+    'A logo comes in as a data address, so the page needs no network.',
+    'Use a logo for every named product, company or model maker on a figure.']},
+  'd.browser': {t: 'Browser', l: 'ICON', d: 'An icon disc shows a kind of thing that has no logo.', x: [
+    'The icon is drawn on a 24 by 24 grid.',
+    'A page adds its own icon with ExDraw.icons.']},
+  'd.phone': {t: 'Phone', l: 'ICON', d: 'The phone stands for the 390 pixel check width.', x: [
+    'scripts/check opens every page at 390 and 1280 pixels.',
+    'The normal figure reflows so every part fits on a phone.']},
+  'r.core': {t: 'One bad token', l: 'IMPACT', d: 'The point of impact is where the failure starts.', x: [
+    'Here a wrong colour token is the example failure.',
+    'Rings spread out to show how far it reaches.']},
+  'r.1': {t: 'Every figure', l: 'RING', d: 'Every figure on the page reads the token.', x: ['A solid red ring means the reach is confirmed.']},
+  'r.2': {t: 'Every theme', l: 'RING', d: 'Other themes set their own value for the token.', x: ['A dashed ring means not reached.']},
+  'r.3': {t: 'Other pages', l: 'RING', d: 'Other pages hold their own copy of the kit.', x: ['A dashed ring means not reached.']}
+});
+(function () {
+ function drawPictures() {
+  var D = ExDraw, b = '', host = document.getElementById('fig-drawn'), ringHost = document.getElementById('fig-rings');
+  var width = host.clientWidth;
+  if (width < 900) {
+    var w = width, cx = w / 2, y = 76;
+    b += D.stamp(16, 30, 'SYNTHETIC');
+    [['d.tokens','gear','tokens.css'],['d.charts','gauge','charts.js'],['d.draw','spark','draw.js'],['d.runtime','terminal','explainer.js']].forEach(function(k,i){
+      b += D.badge(cx,y,{r:24,icon:k[1],title:k[2],ex:k[0]});
+      y += 100;
+    });
+    b += D.arrow('M'+cx+' '+(y-24)+'V'+(y+16),{id:'narrow-kit'}) + D.dots('narrow-kit',2,2.6);
+    y += 44;
+    b += D.hit('d.page','<rect class="ex-box ex-box--key" x="'+(cx-70)+'" y="'+y+'" width="140" height="150" rx="10"/>'+D.icon('vault',cx-15,y+22,30,'key')+'<path class="ex-lead" d="M'+(cx-50)+' '+(y+76)+'h100M'+(cx-50)+' '+(y+96)+'h80"/>'+D.t(cx,y+132,'One page','ex-t','middle'));
+    y += 170;
+    b += D.arrow('M'+cx+' '+y+'v32',{id:'narrow-out'})+D.dots('narrow-out',2,2.4); y += 80;
+    b += D.logo(cx,y,{r:26,src:GITHUB_LOGO,ex:'d.repo',title:'Repository'}); y += 100;
+    b += D.badge(cx,y,{r:26,icon:'globe',ex:'d.browser',title:'Browser'}); y += 100;
+    b += D.badge(cx,y,{r:26,icon:'phone',tone:'off',ex:'d.phone',title:'Phone'});
+    D.svg(host,w,y+80,b,'Kit files enter one page; the page goes to a repository, browser and phone',w);
+    // Same impact, drawn as centred concentric rings with its labels below.
+    var rw=ringHost.clientWidth, rc=rw/2, radii=[Math.min(110,rc-18),Math.min(80,rc-42),40];
+    var rings='';
+    ['r.3','r.2','r.1'].forEach(function(k,i){rings+=D.hit(k,'<circle class="ex-ring '+(i===2?'ex-ring--hit':'ex-ring--safe')+'" cx="'+rc+'" cy="130" r="'+radii[i]+'"/>');});
+    rings+=D.hit('r.core',D.icon('warn',rc-14,116,28,'key'));
+    [['r.core','One bad token'],['r.1','Every figure · reached'],['r.2','Every theme · not reached'],['r.3','Other pages · not reached']].forEach(function(k,i){rings+=D.hit(k[0],D.t(rc,280+i*34,k[1],'ex-t','middle'));});
+    D.svg(ringHost,rw,410,rings,'One bad token reaches every figure, but not other themes or pages',rw);
+    return;
+  }
+  /* the page: a sheet with lines and one chart */
+  b += D.hit('d.page', '<rect class="ex-box ex-box--key" x="380" y="70" width="200" height="250" rx="10"/>' +
+    '<rect class="ex-box" x="404" y="96" width="152" height="70" rx="6"/>' + D.icon('vault', 466, 116, 30, 'key') +
+    '<path class="ex-lead" d="M404 190h152M404 208h120M404 226h140"/>' +
+    '<rect class="ex-solid" x="404" y="270" width="18" height="30" rx="2"/><rect class="ex-solid--key" x="428" y="252" width="18" height="48" rx="2"/><rect class="ex-solid--alt" x="452" y="262" width="18" height="38" rx="2"/>' +
+    D.t(480, 350, 'One page', 'ex-t', 'middle') + D.t(480, 368, 'bundled, works offline', 'ex-ts', 'middle'));
+  var kit = [['d.tokens', 'gear', 'tokens.css', 60], ['d.charts', 'gauge', 'charts.js', 150], ['d.draw', 'spark', 'draw.js', 240], ['d.runtime', 'terminal', 'explainer.js', 330]];
+  kit.forEach(function (k, i) {
+    var y = k[3], key = k[0] === 'd.draw';
+    b += D.arrow('M184 ' + y + ' C 270 ' + y + ', 290 ' + (150 + i * 30) + ', 376 ' + (150 + i * 30), {id: 'kf' + i, tone: key ? 'key' : ''});
+    b += D.dots('kf' + i, 2, 2.6 + i * 0.3, key ? 'key' : '');
+    b += D.hit(k[0], '<circle class="ex-disc' + (key ? ' ex-disc--key' : '') + '" cx="150" cy="' + y + '" r="26"/>' + D.icon(k[1], 136, y - 14, 28, key ? 'key' : '') + D.t(150, y + 46, k[2], 'ex-tl', 'middle'));
+  });
+  b += D.arrow('M584 150 C 660 120, 700 100, 742 96', {id: 'out1'}) + D.arrow('M584 200 C 660 200, 700 200, 742 200') + D.arrow('M584 250 C 660 280, 700 300, 742 304', {tone: 'off'});
+  b += D.dots('out1', 2, 2.4);
+  b += D.logo(790, 96, {r: 30, src: GITHUB_LOGO, ex: 'd.repo', title: 'Repository', sub: 'logo plate'});
+  b += D.badge(790, 200, {r: 30, icon: 'globe', ex: 'd.browser', title: 'Browser', sub: 'icon disc'});
+  b += D.badge(790, 304, {r: 30, icon: 'phone', tone: 'off', ex: 'd.phone', title: 'Phone', sub: 'checked, not used'});
+  b += D.stamp(20, 30, 'SYNTHETIC') + D.t(130, 30, 'The kit files flow into one page', 'ex-ts');
+  D.svg(document.getElementById('fig-drawn'), 900, 390, b, 'Four kit files flow into one page, which goes to a repository, a browser and a phone', 700);
+  D.svg(document.getElementById('fig-rings'), 760, 330, D.rings(170, 165, [
+    {r: 80, ex: 'r.1', title: 'Every figure', sub: 'reached', hit: true},
+    {r: 118, ex: 'r.2', title: 'Every theme', sub: 'not reached'},
+    {r: 156, ex: 'r.3', title: 'Other pages', sub: 'not reached'}
+  ], {r: 40, ex: 'r.core', icon: 'warn', title: 'bad token'}), 'Blast radius of one bad colour token', 620);
+ }
+ drawPictures();
+ var lastWidth=0, frame=0;
+ new ResizeObserver(function(entries){var width=entries[0].contentRect.width;if(Math.abs(width-lastWidth)>1){lastWidth=width;if(!frame)frame=requestAnimationFrame(function(){frame=0;drawPictures();});}}).observe(document.getElementById('fig-drawn'));
+ document.addEventListener('ex:theme',drawPictures);
+})();
+</script>
+<script src="../kit/explainer.js"></script>
+</body>
+</html>

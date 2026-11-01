@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+// Inline the kit into one self-contained HTML file (for a Claude artifact or an email).
+// Usage: scripts/bundle <page.html> [out.html]   Local <link rel="stylesheet" href> and <script src> are inlined,
+// marked data-ex-kit so scripts/check knows them from page code. The theme registry (kit/themes.js) is inlined too.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const [src, out] = process.argv.slice(2);
+if (!src) { console.error('usage: scripts/bundle <page.html> [out.html]'); process.exit(2); }
+const dir = path.dirname(path.resolve(src));
+const local = (href) => !/^(https?:)?\/\//.test(href);
+let html = fs.readFileSync(src, 'utf8'), hasFonts = html.includes('data:font/woff2;base64,');
+const read = (href) => {
+  const text = fs.readFileSync(path.resolve(dir, href), 'utf8');
+  hasFonts ||= text.includes('data:font/woff2;base64,');
+  return text;
+};
+// This is a deliberately constrained HTML tokenizer, not a sanitizer. Preserve
+// comments/raw text and reject ambiguous or unsupported dependency markup rather
+// than rewriting tag-looking strings. Only synchronous classic local scripts
+// and ordinary stylesheet links can be bundled.
+function bundleHTML(input) {
+  let result = '', at = 0, inert = 0;
+  while (at < input.length) {
+    const open = input.indexOf('<', at);
+    if (open < 0) return result + input.slice(at);
+    result += input.slice(at, open);
+    if (input.startsWith('<!--', open)) {
+      const end = input.indexOf('-->', open + 4);
+      if (end < 0) throw new Error('bundle: unterminated HTML comment');
+      result += input.slice(open, end + 3); at = end + 3; continue;
+    }
+    // Quoted attributes may contain >. No deletion/reparse step is involved.
+    const match = /^<\/?[a-zA-Z][^\s/>]*/.exec(input.slice(open));
+    if (!match) { result += '<'; at = open + 1; continue; }
+    let end = open + match[0].length, quote = '';
+    for (; end < input.length; end++) {
+      const c = input[end];
+      if (quote) { if (c === quote) quote = ''; }
+      else if (c === '"' || c === "'") quote = c;
+      else if (c === '>') break;
+    }
+    if (end === input.length) throw new Error('bundle: unterminated HTML tag');
+    const tag = input.slice(open, end + 1), name = match[0].replace(/^<\/?/, '').toLowerCase();
+    const closing = tag[1] === '/';
+    if (name === 'template') inert += closing ? -1 : 1;
+    if (!closing && name === 'plaintext') return result + input.slice(open);
+    if (!closing && ['script', 'style', 'textarea', 'title', 'xmp', 'noscript', 'iframe', 'noembed', 'noframes'].includes(name)) {
+      const close = new RegExp('<\\/' + name + '[\\t\\n\\f\\r ]*>', 'ig'); close.lastIndex = end + 1;
+      const found = close.exec(input);
+      if (!found) throw new Error('bundle: unclosed ' + name);
+      const raw = input.slice(end + 1, found.index), whole = input.slice(open, close.lastIndex);
+      if (name === 'script' && raw.includes('<!--')) throw new Error('bundle: HTML escaped script states are unsupported; move code to a local .js file');
+      if (!inert && name === 'script' && /\bsrc\s*=/i.test(tag)) {
+        const source = /^<script\s+src=(?:"([^"]+)"|'([^']+)')\s*>$/i.exec(tag);
+        if (!source || raw.trim()) throw new Error('bundle: only empty synchronous classic <script src="…"> is supported (no module/async/defer attributes)');
+        const href = source[1] || source[2];
+        if (!local(href)) result += whole;
+        else {
+          if (/[&<>]/.test(href)) throw new Error('bundle: encoded or markup dependency paths are unsupported');
+          const code = read(href);
+          // Dynamic inline classic scripts execute synchronously at this point.
+          // The JS bytes never enter the HTML raw-text parser; unsafe-inline is
+          // already the stock host policy. No data: script, eval or policy grant.
+          if (/\bdocument\s*\.\s*write(?:ln)?\s*\(/.test(code)) throw new Error('bundle: document.write scripts are unsupported');
+          result += '<script data-ex-kit="' + path.basename(href).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) + '">\n{const current=document.currentScript,script=document.createElement("script");script.dataset.exKit=current.dataset.exKit;script.textContent=new TextDecoder().decode(Uint8Array.from(atob("' + Buffer.from(code).toString('base64') + '"),c=>c.charCodeAt(0)));current.replaceWith(script); }\n</script>';
+        }
+      } else result += whole;
+      at = close.lastIndex; continue;
+    }
+    if (!inert && !closing && name === 'link') {
+      const link = /^<link\s+rel=["']stylesheet["']\s+href=(?:"([^"]+)"|'([^']+)')\s*>$/i.exec(tag);
+      if (link && local(link[1] || link[2])) {
+        const href = link[1] || link[2], css = read(href);
+        if (/[&<>]/.test(href) || /<\/style[\t\n\f\r />]/i.test(css)) throw new Error('bundle: unsupported stylesheet path or raw-text delimiter');
+        result += '<style data-ex-kit="' + path.basename(href) + '">\n' + css + '</style>';
+      } else if (!link && /\bstylesheet\b/i.test(tag)) throw new Error('bundle: use an ordinary <link rel="stylesheet" href="…">');
+      else result += tag;
+    } else result += tag;
+    at = end + 1;
+  }
+  return result;
+}
+html = bundleHTML(html);
+// Preserve the verbatim font licence when the embedded faces travel as one file.
+const notice = path.resolve(__dirname, '../kit/FONT-LICENCES.md');
+if (hasFonts && !html.includes('data-ex-font-licences') && fs.existsSync(notice)) html = html.replace(/<\/head[\t\n\f\r ]*>/i, close => '<template data-ex-font-licences>' + fs.readFileSync(notice, 'utf8').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</template>\n' + close);
+if (out) fs.writeFileSync(out, html); else process.stdout.write(html);
