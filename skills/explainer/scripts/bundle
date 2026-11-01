@@ -1,0 +1,19 @@
+#!/usr/bin/env node
+// Inline the kit into one self-contained HTML file (for a Claude artifact or an email).
+// Usage: scripts/bundle <page.html> [out.html]   Local <link rel="stylesheet" href> and <script src> are inlined,
+// marked data-ex-kit so scripts/check knows them from page code. The theme registry (kit/themes.js) is inlined too.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const [src, out] = process.argv.slice(2);
+if (!src) { console.error('usage: scripts/bundle <page.html> [out.html]'); process.exit(2); }
+const dir = path.dirname(path.resolve(src));
+const local = (href) => !/^(https?:)?\/\//.test(href);
+const read = (href) => fs.readFileSync(path.resolve(dir, href), 'utf8');
+let html = fs.readFileSync(src, 'utf8');
+html = html.replace(/<link rel="stylesheet" href="([^"]+)">/g, (m, href) => local(href) ? `<style data-ex-kit="${path.basename(href)}">\n${read(href)}</style>` : m);
+html = html.replace(/<script src="([^"]+)"><\/script>/g, (m, href) => local(href) ? `<script data-ex-kit="${path.basename(href)}">\n${read(href).replace(/<\/script/gi, '<\\/script')}</script>` : m);
+// Preserve the verbatim font licence when the embedded faces travel as one file.
+const notice = path.resolve(__dirname, '../kit/FONT-LICENCES.md');
+if (html.includes('data:font/woff2;base64,') && !html.includes('data-ex-font-licences') && fs.existsSync(notice)) html = html.replace('</head>', '<script type="text/plain" data-ex-font-licences>' + fs.readFileSync(notice, 'utf8').replace(/<\/script/gi, '<\\/script') + '</script>\n</head>');
+if (out) fs.writeFileSync(out, html); else process.stdout.write(html);

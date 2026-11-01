@@ -1,0 +1,16 @@
+{
+  "title": "Explainer kit: parts open, views switch, theme changes",
+  "url": "http://localhost:8765/examples/explainer-kit.html",
+  "viewport": [1280, 800],
+  "steps": [
+    {"shot": "1 Open on the control: a diagram part", "do": "hover", "target": "#fig-build [data-ex='pop']"},
+    {"shot": "2 Open the part: definition first", "do": "click", "target": "#fig-build [data-ex='pop']", "expect": ".ex-pop"},
+    {"shot": "2 Close it: the page below does not change", "do": "press", "key": "Escape", "expectHidden": ".ex-pop"},
+    {"shot": "3 A second part opens on its own", "do": "click", "target": "#fig-build [data-ex='charts']", "expect": ".ex-pop"},
+    {"shot": "3 Close it", "do": "press", "key": "Escape", "expectHidden": ".ex-pop"},
+    {"shot": "4 The data block: chart view", "do": "scroll", "target": "#fig-views"},
+    {"shot": "4 Switch to the table view", "do": "click", "target": "#fig-views .ex-seg button[data-view='table']", "expect": "#fig-views table"},
+    {"shot": "5 The theme button opens the menu", "do": "click", "target": ".ex-theme-btn", "expect": ".ex-theme-menu"},
+    {"shot": "6 Pick Harbour: the page changes in place", "do": "click", "target": ".ex-theme-opt[data-id='harbour']", "hold": 1800}
+  ]
+}

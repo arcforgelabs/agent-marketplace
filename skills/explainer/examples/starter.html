@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How a page is read</title>
+<!-- Copy this file to start a page. One section per subject.
+     Pick the best primary view, then add one alternative from another family.
+     Each main part: a definition, then about 4 to 8 facts. Full words on the page. -->
+<meta name="ex-theme" content="clarity">
+<link rel="stylesheet" href="../kit/tokens.css">
+<link rel="stylesheet" href="../kit/explainer.css">
+</head>
+<body class="ex-page">
+<nav class="ex-rail" aria-label="Sections"></nav>
+<div class="ex-shell">
+<section class="ex-section" style="padding-top:0">
+  <div class="ex-title"><h1>How a page is read</h1><p>A reader opens one page. The page loads facts from a store.</p><div class="ex-meta">Starter · synthetic example</div></div>
+</section>
+
+<section class="ex-section" id="parts">
+  <div class="ex-head"><span class="ex-n">01</span><h2>Reader, page, and fact store</h2><p>The diagram shows how the three parts connect. The switch shows the same parts as a table.</p></div>
+  <div id="fig-parts"></div>
+  <details class="ex-facts" data-def="A page read is a reader opening a page that loads facts from a store."></details>
+</section>
+</div>
+
+<script src="../kit/themes.js"></script>
+<script src="../kit/charts.js"></script>
+<script src="../kit/draw.js"></script>
+<script src="../kit/canvas.js"></script>
+<script>
+// One entry per part. t = title, l = layer, d = definition (what it is), x = facts.
+// Facts do not repeat the definition. A main part has about 4 to 8 of them.
+window.EX = {
+  "reader": {"t": "Reader", "l": "Reader", "d": "A reader is the person who opens the page to learn one subject.", "x": [
+    "The reader exists so the page has someone to teach.",
+    "The reader scans the first figure, then opens the part that matches the question.",
+    "The reader connects only to the page. The fact store stays behind the page.",
+    "This starter gives the reader 2 views of 1 subject: a structure diagram and a comparison table.",
+    "The page fails the reader when a part does not open, or when both views come from the same family.",
+    "A main pop-up on this page holds 6 facts after the definition.",
+    "The page rules are in references/pattern.md."
+  ]},
+  "page": {"t": "Page", "l": "Page", "d": "The page is the explainer that shows one subject with pictures first.", "x": [
+    "The page exists so the reader can learn the subject without a long essay.",
+    "The page draws a primary view, then a second view of the same subject from another family.",
+    "The page sits between the reader and the fact store: it takes an open, then reads one entry.",
+    "This starter has 5 named parts: 3 boxes and 2 links.",
+    "The page fails when a named part has no entry, or when the second view repeats the first family.",
+    "Open text on the page stays to one or two sentences. Depth sits in the pop-up.",
+    "Copy examples/starter.html to start a new page."
+  ]},
+  "store": {"t": "Fact store", "l": "Store", "d": "The fact store is the list of definitions and facts for every part.", "x": [
+    "The store exists so each part can open the same words every time.",
+    "The page writes one entry per part, with a title, a layer, a definition, and facts.",
+    "The store connects only to the page. The reader never edits it from the diagram.",
+    "This starter stores 5 entries.",
+    "A click fails when the entry is missing, and no pop-up opens.",
+    "Facts must add depth. They must not repeat the definition.",
+    "The field list is in the skill file, under Make a page."
+  ]},
+  "e.open": {"t": "Open", "l": "Link", "d": "Open is the step that carries the reader onto the page.", "x": [
+    "Open exists so the reader can reach the subject from outside the page.",
+    "Open moves attention from the reader to the first section.",
+    "Open connects the reader to the page, and it stops there.",
+    "One open shows 1 page.",
+    "Open fails when the address is wrong, and no section appears.",
+    "The first figure names this link."
+  ]},
+  "e.read": {"t": "Read", "l": "Link", "d": "Read is the step that loads one part's facts from the store.", "x": [
+    "Read exists so a pop-up can show facts that are not drawn on the figure.",
+    "Read looks up one key and returns that part's definition and its facts.",
+    "Read connects the page to the fact store.",
+    "Each click reads 1 entry.",
+    "Read fails when the key is missing, and the pop-up stays closed.",
+    "The runtime in kit/explainer.js performs the read."
+  ]}
+};
+ExCharts.views(document.getElementById('fig-parts'), {label: 'Parts', views: [
+  {id: 'figure', label: 'Diagram', draw: function (b) { ExCharts.connection(b, {
+    label: 'Reader, page, and fact store', cols: ['Reader', 'Page'],
+    nodes: [
+      {id: 'reader', col: 0, row: 0, title: 'Reader', sub: 'opens the page', ex: 'reader'},
+      {id: 'page', col: 1, row: 0, title: 'Page', sub: 'shows the subject', layer: 'key', ex: 'page'},
+      {id: 'store', col: 1, row: 1, title: 'Fact store', sub: 'holds the facts', ex: 'store'}
+    ],
+    edges: [
+      {from: 'reader', to: 'page', label: 'open', ex: 'e.open'},
+      {from: 'page', to: 'store', label: 'read', ex: 'e.read'}
+    ]
+  }); }},
+  {id: 'table', label: 'Table', draw: function (b) { ExCharts.table(b, {
+    cols: ['Part', 'Job', 'Connects to', 'Stops when'],
+    rows: [
+      {cells: ['Reader', 'Opens the page', 'The page', 'The page does not load'], ex: 'reader'},
+      {cells: ['Page', 'Shows one subject', 'Reader and fact store', 'A part has no entry'], ex: 'page'},
+      {cells: ['Fact store', 'Holds the facts', 'The page', 'A key is missing'], ex: 'store'},
+      {cells: ['Open', 'Carries attention', 'Reader to page', 'The address is wrong'], ex: 'e.open'},
+      {cells: ['Read', 'Loads one entry', 'Page to fact store', 'The key is missing'], ex: 'e.read'}
+    ]
+  }); }}
+]});
+</script>
+<script src="../kit/explainer.js"></script>
+</body>
+</html>

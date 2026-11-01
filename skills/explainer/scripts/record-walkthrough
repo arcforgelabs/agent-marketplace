@@ -1,0 +1,166 @@
+#!/usr/bin/env node
+// Records a UI walkthrough video from a written shot list (references/formats/ui-walkthrough.md).
+// Tier A: headed Chromium on a virtual display (Xvfb), recorded by ffmpeg: one continuous desktop take.
+// Tier B: Playwright recordVideo: browser only. Both tiers draw a cursor in the page, so the clicks show.
+// The page opens and settles before the take starts. If a step fails, the take is discarded.
+// After the take: <out>.json holds each step's time in the clip, and <out>-frames/ one frame per step
+// for the clip check.
+// Usage: scripts/record-walkthrough <shots.json> <out.mp4> [--tier auto|a|b]
+// Needs Playwright. Tier A also needs Xvfb and ffmpeg. Set CHROMIUM_PATH to use a browser that is already installed.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { spawn, spawnSync } = require('child_process');
+let pw;
+try { pw = require('playwright'); } catch (e) {
+  try { pw = require(path.join(process.execPath, '../../lib/node_modules/playwright')); } catch (e2) {
+    console.error('Playwright is not installed. Run: npm i -g playwright'); process.exit(2);
+  }
+}
+const args = process.argv.slice(2);
+const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const [shotsFile, out0] = args;
+if (!shotsFile || !out0 || out0.startsWith('--')) { console.error('usage: scripts/record-walkthrough <shots.json> <out.mp4> [--tier auto|a|b]'); process.exit(2); }
+const out = path.resolve(out0), base = out.replace(/\.[a-z0-9]+$/i, '');
+const shots = JSON.parse(fs.readFileSync(shotsFile, 'utf8'));
+const [W, H] = shots.viewport || [1280, 800];
+const has = (cmd) => spawnSync('sh', ['-c', 'command -v ' + cmd], { stdio: 'ignore' }).status === 0;
+const want = (opt('--tier') || 'auto').toLowerCase();
+const tier = want === 'auto' ? (has('Xvfb') && has('ffmpeg') ? 'a' : 'b') : want;
+if (tier === 'a' && !(has('Xvfb') && has('ffmpeg'))) { console.error('tier a needs Xvfb and ffmpeg'); process.exit(2); }
+const exe = process.env.CHROMIUM_PATH || undefined;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The drawn cursor: an arrow that follows mouse events, and a ring on each press.
+const CURSOR = `(() => {
+  if (window.top !== window) return;
+  const put = () => {
+    if (document.getElementById('__wt_cursor')) return;
+    const c = document.createElement('div'); c.id = '__wt_cursor';
+    c.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22"><path d="M2 2 L2 18 L6.5 13.8 L9.6 20.4 L12.4 19.1 L9.4 12.6 L15.6 12.6 Z" fill="black" stroke="white" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    c.style.cssText = 'position:fixed;left:0;top:0;width:22px;height:22px;z-index:2147483647;pointer-events:none;transform:translate(-100px,-100px)';
+    document.documentElement.appendChild(c);
+    addEventListener('mousemove', (e) => { c.style.transform = 'translate(' + (e.clientX - 2) + 'px,' + (e.clientY - 2) + 'px)'; }, true);
+    addEventListener('mousedown', (e) => {
+      const r = document.createElement('div');
+      r.style.cssText = 'position:fixed;z-index:2147483646;pointer-events:none;width:28px;height:28px;border-radius:50%;border:3px solid black;box-shadow:0 0 0 2px white;left:' + (e.clientX - 17) + 'px;top:' + (e.clientY - 17) + 'px;transition:transform .45s,opacity .45s';
+      document.documentElement.appendChild(r);
+      requestAnimationFrame(() => { r.style.transform = 'scale(1.8)'; r.style.opacity = '0'; });
+      setTimeout(() => r.remove(), 600);
+    }, true);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', put); else put();
+})();`;
+
+let mouse = { x: W / 2, y: H / 2 };
+// Move like a hand: ease in and out over 300 to 500 ms, about 20 points. A bare
+// mouse.move({steps}) sends every point at once, so the cursor jumps.
+async function moveTo(page, x, y) {
+  const x0 = mouse.x, y0 = mouse.y, d = Math.hypot(x - x0, y - y0);
+  const ms = Math.round(Math.max(300, Math.min(500, 300 + d / 4))), n = 20;
+  for (let i = 1; i <= n; i++) {
+    const t = i / n, e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    await page.mouse.move(x0 + (x - x0) * e, y0 + (y - y0) * e);
+    await sleep(ms / n);
+  }
+  mouse = { x, y };
+}
+async function centre(page, target) {
+  const loc = page.locator(target).first();
+  await loc.waitFor({ state: 'visible', timeout: 5000 });
+  await loc.scrollIntoViewIfNeeded();
+  const b = await loc.boundingBox();
+  if (!b) throw new Error('no box for ' + target);
+  return [b.x + b.width / 2, b.y + b.height / 2];
+}
+async function step(page, s) {
+  if (s.do === 'click' || s.do === 'hover') {
+    const [x, y] = await centre(page, s.target);
+    await moveTo(page, x, y); await sleep(400);
+    if (s.do === 'click') await page.mouse.click(x, y);
+  } else if (s.do === 'press') await page.keyboard.press(s.key);
+  else if (s.do === 'type') { const [x, y] = await centre(page, s.target); await moveTo(page, x, y); await sleep(400); await page.mouse.click(x, y); await page.keyboard.type(s.text, { delay: 50 }); }
+  else if (s.do === 'scroll') { const [x, y] = await centre(page, s.target); await moveTo(page, Math.min(x, W - 40), Math.min(Math.max(y, 40), H - 40)); }
+  else if (s.do === 'wait') await sleep(s.ms || 1000);
+  else throw new Error('unknown step: ' + s.do);
+  if (s.expect) await page.locator(s.expect).first().waitFor({ state: 'visible', timeout: 5000 });
+  if (s.expectHidden) await page.locator(s.expectHidden).first().waitFor({ state: 'hidden', timeout: 5000 });
+  await sleep(s.hold != null ? s.hold : 1100);
+}
+
+function frames(video, log) {
+  const dir = base + '-frames';
+  fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
+  log.steps.forEach((s, i) => {
+    const f = path.join(dir, String(i + 1).padStart(2, '0') + '.png');
+    spawnSync('ffmpeg', ['-v', 'error', '-y', '-ss', String(Math.max(0, s.end - 0.2)), '-i', video, '-frames:v', '1', f]);
+  });
+  return dir;
+}
+
+(async () => {
+  let xvfb, rec, browser, ok = false, t0 = 0;
+  const log = { title: shots.title || '', url: shots.url, viewport: [W, H], tier, steps: [] };
+  const fail = (e) => { console.error('take discarded: ' + (e && e.message || e)); };
+  try {
+    if (tier === 'a') {
+      const disp = ':' + (90 + Math.floor(Math.random() * 9));
+      xvfb = spawn('Xvfb', [disp, '-screen', '0', W + 'x' + H + 'x24', '-nolisten', 'tcp'], { stdio: 'ignore' });
+      await sleep(800);
+      // App mode: one window, no tabs or address bar, filling the display.
+      const ctx = await pw.chromium.launchPersistentContext(fs.mkdtempSync(path.join(require('os').tmpdir(), 'wt-')), {
+        headless: false, executablePath: exe, env: { ...process.env, DISPLAY: disp, GOOGLE_API_KEY: 'no', GOOGLE_DEFAULT_CLIENT_ID: 'no', GOOGLE_DEFAULT_CLIENT_SECRET: 'no' }, viewport: null, ignoreDefaultArgs: ['--enable-automation'],
+        args: ['--app=' + shots.url, '--window-position=0,0', '--window-size=' + W + ',' + H, '--no-first-run', '--hide-scrollbars', '--disable-infobars', '--test-type'] });
+      browser = ctx;
+      await ctx.addInitScript(CURSOR);
+      let page = ctx.pages()[0] || await ctx.waitForEvent('page');
+      await page.goto(shots.url, { waitUntil: 'load' }); await sleep(1200);
+      await page.mouse.move(mouse.x, mouse.y);
+      rec = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'x11grab', '-draw_mouse', '0', '-video_size', W + 'x' + H, '-framerate', '30', '-i', disp,
+        '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-progress', 'pipe:1', out], { stdio: ['pipe', 'pipe', 'inherit'] });
+      // Step times are clip times: t0 is when ffmpeg grabbed its first frame, not when it was spawned.
+      t0 = await new Promise((resolve, reject) => {
+        let buf = '';
+        const on = (d) => {
+          buf += d; const blocks = buf.split(/progress=\w+\n/); blocks.pop();
+          const last = blocks.length ? +((blocks[blocks.length - 1].match(/frame=(\d+)/) || [])[1] || 0) : 0;
+          if (last > 0) { rec.stdout.off('data', on); rec.stdout.resume(); resolve(Date.now() - last * 40); }
+        };
+        rec.stdout.on('data', on); setTimeout(() => reject(new Error('ffmpeg did not start')), 10000);
+      });
+      await sleep(shots.lead || 1500);
+      for (const s of shots.steps) { const a = (Date.now() - t0) / 1000; await step(page, s); fs.mkdirSync(base + '-frames', {recursive:true}); await page.screenshot({path:path.join(base + '-frames', String(log.steps.length + 1).padStart(2,'0') + '.png')}); log.steps.push({ shot: s.shot || '', do: s.do, target: s.target || s.key || '', start: a, end: (Date.now() - t0) / 1000 }); }
+      await sleep(shots.tail || 1500);
+      rec.stdin.write('q'); await new Promise((r) => rec.on('exit', r)); rec = null;
+    } else {
+      browser = await pw.chromium.launch({ executablePath: exe });
+      const vdir = base + '-raw'; fs.mkdirSync(vdir, { recursive: true });
+      const ctx = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir: vdir, size: { width: W, height: H } } });
+      const c0 = Date.now();
+      await ctx.addInitScript(CURSOR);
+      const page = await ctx.newPage();
+      await page.goto(shots.url, { waitUntil: 'load' }); await sleep(1200);
+      await page.mouse.move(mouse.x, mouse.y);
+      t0 = Date.now(); await sleep(shots.lead || 1500);
+      for (const s of shots.steps) { const a = (Date.now() - t0) / 1000; await step(page, s); fs.mkdirSync(base + '-frames', {recursive:true}); await page.screenshot({path:path.join(base + '-frames', String(log.steps.length + 1).padStart(2,'0') + '.png')}); log.steps.push({ shot: s.shot || '', do: s.do, target: s.target || s.key || '', start: a, end: (Date.now() - t0) / 1000 }); }
+      await sleep(shots.tail || 1500);
+      const raw = await page.video().path(); await ctx.close();
+      const cut = String((t0 - c0) / 1000);
+      // recordVideo starts with the context: cut the setup off the front.
+      if (has('ffmpeg')) { const converted = spawnSync('ffmpeg', ['-v', 'error', '-y', '-ss', cut, '-i', raw, '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out], { stdio: 'inherit' }); if (converted.status !== 0) throw new Error('ffmpeg conversion failed'); }
+      else fs.copyFileSync(raw, out.replace(/\.mp4$/i, '.webm'));
+      fs.rmSync(vdir, { recursive: true, force: true });
+    }
+    ok = true;
+  } catch (e) { fail(e); }
+  if (rec) { try { rec.stdin.write('q'); } catch (e) {} await new Promise((r) => { rec.on('exit', r); setTimeout(r, 3000); }); }
+  if (browser) await browser.close().catch(() => {});
+  if (xvfb) xvfb.kill();
+  if (!ok) { fs.rmSync(out, { force: true }); process.exit(1); }
+  log.duration = log.steps.length ? log.steps[log.steps.length - 1].end + (shots.tail || 1500) / 1000 : 0;
+  fs.writeFileSync(base + '.json', JSON.stringify(log, null, 2) + '\n');
+  const fdir = fs.existsSync(out) && has('ffmpeg') ? frames(out, log) : null;
+  const mb = fs.existsSync(out) ? (fs.statSync(out).size / 1e6).toFixed(1) + ' MB' : 'webm (no ffmpeg)';
+  console.log('tier ' + tier + ': ' + out + ' (' + log.steps.length + ' steps, ' + log.duration.toFixed(1) + ' s, ' + mb + ')');
+  console.log('step log: ' + base + '.json' + (fdir ? '\nframes for the clip check: ' + fdir : ''));
+})();

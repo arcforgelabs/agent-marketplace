@@ -1,0 +1,281 @@
+#!/usr/bin/env node
+// Headless check for an explainer page (references/pattern.md, "Check before you publish").
+// Runs the page in every theme of kit/themes.js, in light and dark, at 390px and 1280px:
+//   page errors, exactly one theme button, every part opens, every view of a data block opens,
+//   at most one table shown at load and never a section that opens on a table,
+//   no sideways scroll, WCAG AA contrast of the token pairs the kit draws, and no literal colours in the page.
+// Once per page: the theme menu (live preview, Set as default, Clear default) and the default order
+//   (viewer's pick > saved default > page theme > Arc Forge). Facts lists: in the fallback theme.
+// Usage: scripts/check <page.html> [--shots <dir>] [--theme <id>]
+// Needs Playwright. Set CHROMIUM_PATH to use a browser that is already installed.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+let pw;
+try { pw = require('playwright'); } catch (e) {
+  try { pw = require(path.join(process.execPath, '../../lib/node_modules/playwright')); } catch (e2) {
+    console.error('Playwright is not installed. Run: npm i -g playwright'); process.exit(2);
+  }
+}
+const args = process.argv.slice(2);
+const page0 = args[0];
+const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const shots = opt('--shots'), only = opt('--theme');
+if (!page0) { console.error('usage: scripts/check <page.html> [--shots <dir>] [--theme <id>]'); process.exit(2); }
+const file = path.resolve(page0), url = 'file://' + file;
+const fails = [];
+
+/* ---- No literal colours in the page (kit files inlined by scripts/bundle are skipped). ---- */
+function literals(html) {
+  const src = html.replace(/<script[^>]*data-ex-font-licences[^>]*>[\s\S]*?<\/script>/g, '').replace(/<(style|script)[^>]*data-ex-kit[^>]*>[\s\S]*?<\/\1>/g, '').replace(/<link[^>]*>/g, '');
+  const parts = [];
+  src.replace(/<style[^>]*>([\s\S]*?)<\/style>/g, (m, css) => parts.push(['style', css]));
+  src.replace(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g, (m, js) => parts.push(['script', js]));
+  src.replace(/\s(style|fill|stroke|color|stop-color|bgcolor)="([^"]*)"/g, (m, a, v) => parts.push([a, v]));
+  const named = 'red|green|blue|white|black|grey|gray|orange|yellow|purple|pink|navy|teal|silver|maroon|olive|lime|aqua|fuchsia';
+  const bad = [
+    /(^|[\s:,("'=])#[0-9a-f]{3,8}\b(?![-\w])/i,
+    /\b(rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(\s*[\d.]/i,
+    new RegExp(`(^|[\\s;{"'])(color|fill|stroke|background(-color)?|border(-[a-z]+)?-color|outline-color)\\s*:\\s*(${named})\\b`, 'i'),
+  ];
+  const found = [];
+  for (const [where, text] of parts) {
+    for (const line of text.split('\n')) {
+      if (where === 'script' && !/["'`]/.test(line)) continue;
+      if (bad.some((re) => re.test(line))) found.push(`${where}: ${line.trim().slice(0, 100)}`);
+    }
+  }
+  return found;
+}
+for (const l of literals(fs.readFileSync(file, 'utf8'))) fails.push('literal colour in the page (use a token): ' + l);
+
+/* ---- Token pairs: [name, foreground, surface layers (bottom first), minimum]. 4.5 text, 3 marks (WCAG 1.4.3, 1.4.11). ---- */
+const PAIRS = [
+  ['text on page', '--text', ['--bg-accent'], 4.5], ['text on card', '--text', ['--card'], 4.5],
+  ['strong on card', '--text-strong', ['--card'], 4.5], ['strong on page', '--text-strong', ['--bg-accent'], 4.5],
+  ['muted on card', '--muted', ['--card'], 4.5], ['muted on page', '--muted', ['--bg-accent'], 4.5],
+  ['strong on key box', '--text-strong', ['--card', '--accent-subtle'], 4.5], ['muted on key box', '--muted', ['--card', '--accent-subtle'], 4.5],
+  ['strong on alt box', '--text-strong', ['--card', '--accent-2-subtle'], 4.5], ['muted on alt box', '--muted', ['--card', '--accent-2-subtle'], 4.5],
+  ['accent label on card', '--accent', ['--card'], 4.5], ['accent label on page', '--accent', ['--bg-accent'], 4.5],
+  ['ink on accent', '--on-accent', ['--card', '--accent'], 4.5], ['card on strong (pressed)', '--card', ['--text-strong'], 4.5],
+  ['steel mark on card', '--accent-2', ['--card'], 3], ['focus ring on card', '--ring', ['--card'], 3],
+  ...[1, 2, 3, 4, 5].map((i) => [`series-${i} on card`, `--series-${i}`, ['--card'], 3]),
+];
+const KEYS = ['stock', 'conf', 'exp', 'ours', 'risk', 'outside'];
+
+async function audit(page) {
+  return page.evaluate(([pairs, keys]) => {
+    const C = window.ExCharts;
+    if (!C || !C.rgba) return { error: 'ExCharts.rgba is missing (load kit/charts.js)' };
+    const body = document.body;
+    const flat = (layers) => layers.reduce((under, v) => {
+      const c = C.rgba(body, `var(${v})`);
+      return c.slice(0, 3).map((x, i) => x * c[3] + under[i] * (1 - c[3])).concat(1);
+    }, [255, 255, 255, 1]);
+    const ratio = (fg, layers) => { const bg = flat(layers); const f = C.rgba(body, `var(${fg})`); const top = f.slice(0, 3).map((x, i) => x * f[3] + bg[i] * (1 - f[3])).concat(1); return C.contrast(top, bg); };
+    const out = pairs.map(([name, fg, layers, min]) => ({ name, min, r: ratio(fg, layers) }));
+    const key = keys.map((k) => ({ name: `key ${k} on card`, min: 3, r: ratio(`--key-${k}`, ['--card']) }));
+    return { out, key };
+  }, [PAIRS, KEYS]);
+}
+
+async function openAll(page, tag) {
+  const n = await page.locator('[data-ex]').count();
+  for (let i = 0; i < n; i++) {
+    const el = page.locator('[data-ex]').nth(i);
+    await el.evaluate((e) => { e.scrollIntoView({ block: 'center' }); e.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    const ok = await page.evaluate(() => { const p = document.querySelector('.ex-pop'); return p && !p.hidden && p.querySelector('.ex-def').textContent.trim().length > 0; });
+    if (!ok) fails.push(`${tag}: item ${i} (${await el.getAttribute('data-ex')}) opens no pop-up`);
+    await page.keyboard.press('Escape');
+  }
+  return n;
+}
+
+async function pickTheme(page, id) {
+  await page.locator('.ex-theme-btn').click();
+  await page.locator(`.ex-theme-opt[data-id="${id}"]`).click();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(60);
+}
+
+(async () => {
+  const browser = await pw.chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+  // Palette/layout checks do not need remote font/CDN networking; glyph proof is separate.
+  async function contextFor(options) { const context = await browser.newContext(options); await context.route('https://**/*', route => route.request().url().startsWith('https://explainer.check/') ? route.fallback() : route.abort()); return context; }
+  const probe = await (await contextFor()).newPage();
+  await probe.goto(url, { waitUntil: 'load' });
+  const reg = await probe.evaluate(() => ({ themes: window.ExThemes ? window.ExThemes.themes.map((t) => t.id) : [], fallback: window.ExThemes && window.ExThemes.fallback, api: !!window.ExTheme }));
+  if (!reg.themes.length) fails.push('no themes: load kit/themes.js before kit/explainer.js');
+  if (!reg.api) fails.push('no theme engine: kit/explainer.js did not run');
+  const themes = only ? [only] : reg.themes;
+
+  /* ---- The theme menu and the default order (once, fallback theme, light, 1280px). ---- */
+  if (reg.themes.length > 2 && reg.api) {
+    const ctx = await contextFor({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => fails.push(`menu: page error: ${e.message}`));
+    await page.goto(url, { waitUntil: 'load' });
+    const attr = () => page.evaluate(() => document.documentElement.getAttribute('data-ex-theme'));
+    const pageTheme = await page.evaluate(() => window.ExTheme.page());
+    if ((await attr()) !== pageTheme) fails.push(`menu: page starts on ${await attr()}, not its page theme ${pageTheme}`);
+    const [a, b] = reg.themes.filter((t) => t !== pageTheme);
+    await page.locator('.ex-theme-btn').click();
+    if (await page.locator('.ex-theme-menu').isHidden()) fails.push('menu: the theme button opens no menu');
+    await page.locator(`.ex-theme-opt[data-id="${a}"]`).hover();
+    if ((await attr()) !== a) fails.push('menu: pointing at a theme does not preview it');
+    await page.locator('.ex-theme-h').first().hover();
+    if ((await attr()) !== pageTheme) fails.push('menu: leaving the list does not show the chosen theme again');
+    await page.locator(`.ex-theme-opt[data-id="${b}"]`).click();
+    await page.locator('.ex-theme-menu [data-mode="dark"]').click();
+    if ((await attr()) !== b || (await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== 'dark') fails.push('menu: a click does not apply the theme and the mode');
+    await page.locator('.ex-theme-acts [data-act="default"]').click();
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('ex.theme.default') || 'null'));
+    if (!saved || saved.id !== b || saved.mode !== 'dark') fails.push('menu: Set as default does not save the theme and mode');
+    await page.evaluate(() => sessionStorage.clear());
+    await page.reload({ waitUntil: 'load' });
+    if ((await attr()) !== b) fails.push('order: the saved default does not win over the page theme');
+    await page.locator('.ex-theme-btn').click();
+    await page.locator('.ex-theme-acts [data-act="clear"]').click();
+    if ((await attr()) !== pageTheme) fails.push('menu: Clear default does not go back to the page theme');
+    await ctx.close();
+
+    // Page theme > fallback, and saved default > page theme, on a copy of the page with another <meta name="ex-theme">.
+    const copy = path.join(path.dirname(file), `.check-${process.pid}.html`);
+    let html = fs.readFileSync(file, 'utf8').replace(/<meta name="ex-theme"[^>]*>\n?/, '');
+    html = html.replace(/<head>/, `<head><meta name="ex-theme" content="${a}">`);
+    fs.writeFileSync(copy, html);
+    try {
+      const c2 = await contextFor({ viewport: { width: 1280, height: 900 } });
+      const p2 = await c2.newPage();
+      await p2.goto('file://' + copy, { waitUntil: 'load' });
+      if ((await p2.evaluate(() => document.documentElement.getAttribute('data-ex-theme'))) !== a) fails.push('order: the page theme does not win over the fallback');
+      await p2.evaluate((id) => localStorage.setItem('ex.theme.default', JSON.stringify({ id, mode: 'auto' })), b);
+      await p2.reload({ waitUntil: 'load' });
+      if ((await p2.evaluate(() => document.documentElement.getAttribute('data-ex-theme'))) !== b) fails.push('order: the saved default does not win over the page theme');
+      await c2.close();
+    } finally { fs.unlinkSync(copy); }
+    console.log('menu and order: checked');
+  }
+
+  /* ---- The Artifact viewer's style policy (once, 390px and 1280px). The claude.ai viewer allows the page's own
+     <style> blocks (by hash) and blocks a <style> tag that a script adds later. A page can pass every other
+     check and still show a 760px Expand icon there, so load the page under the same kind of policy. ---- */
+  {
+    // Audit the self-contained delivery, not unresolved relative scripts on a fake origin.
+    const html = require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'bundle'), file], {encoding:'utf8', maxBuffer:8*1024*1024});
+    const hashes = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => `'sha256-${require('crypto').createHash('sha256').update(m[1]).digest('base64')}'`);
+    const policy = `style-src ${hashes.join(' ')} https://fonts.googleapis.com`;
+    for (const width of [390, 1280]) {
+      const tag = `viewer policy ${width}px`;
+      const ctx = await contextFor({ viewport: { width, height: 900 } });
+      const page = await ctx.newPage();
+      page.on('pageerror', (e) => fails.push(`${tag}: page error: ${e.message}`));
+      await page.route('https://explainer.check/', (r) => r.fulfill({ status: 200, contentType: 'text/html', headers: { 'content-security-policy': policy }, body: html }));
+      await page.goto('https://explainer.check/', { waitUntil: 'load' });
+      if (!(await page.evaluate(() => window.ExTheme && window.ExCharts && window.ExRuntime))) fails.push(`${tag}: policy fixture did not load the kit`);
+      if (await page.locator('.ex-figure > svg').count() && !(await page.locator('.ex-expand').count())) fails.push(`${tag}: vector figure has no expand control`);
+      const bad = await page.evaluate(() => [...document.querySelectorAll('.ex-expand')].filter((b) => {
+        const r = b.getBoundingClientRect(), i = b.querySelector('svg'), s = i && i.getBoundingClientRect();
+        return r.width > 32 || r.height > 32 || !s || s.width > 24 || b.textContent.trim() || !b.title;
+      }).length);
+      if (bad) fails.push(`${tag}: ${bad} figure button(s) are not a 28px icon with a hover name; kit styles must not depend on a <style> tag a script adds`);
+      await ctx.close();
+    }
+    console.log('viewer policy: checked');
+  }
+
+  /* ---- Every theme, both modes, both widths. ---- */
+  for (const theme of themes) {
+    for (const scheme of ['light', 'dark']) {
+      for (const width of [390, 1280]) {
+        const tag = `${theme} ${scheme} ${width}px`;
+        const ctx = await contextFor({ viewport: { width, height: 900 }, colorScheme: scheme });
+        const page = await ctx.newPage();
+        page.on('pageerror', (e) => fails.push(`${tag}: page error: ${e.message}`));
+        await page.goto(url, { waitUntil: 'load' });
+        const buttons = await page.locator('.ex-theme-btn').count();
+        if (buttons !== 1) { fails.push(`${tag}: ${buttons} theme buttons, needs exactly 1`); await ctx.close(); continue; }
+        if (!(await page.locator('.ex-theme-btn').getAttribute('aria-label'))) fails.push(`${tag}: the theme button has no name`);
+        if ((await page.evaluate(() => document.documentElement.getAttribute('data-ex-theme'))) !== theme) await pickTheme(page, theme);
+        if ((await page.evaluate(() => document.documentElement.getAttribute('data-ex-theme'))) !== theme) fails.push(`${tag}: the theme menu does not apply ${theme}`);
+        await page.waitForTimeout(80);
+
+        const a = await audit(page);
+        if (a.error) fails.push(`${tag}: ${a.error}`);
+        else {
+          for (const p of a.out) if (p.r < p.min) fails.push(`${tag}: contrast ${p.name} is ${p.r.toFixed(2)}:1, needs ${p.min}:1`);
+          for (const p of a.key) if (p.r < p.min) console.log(`WARN ${tag}: ${p.name} is ${p.r.toFixed(2)}:1 (the key belongs to arcforgelabs/themes; a key box also has a word)`);
+        }
+
+        const r = await page.evaluate(() => {
+          const out = { items: 0, missing: [], noDef: [], sideways: false, facts: 0, tables: 0, figures: 0, tableOnly: [], bigIcons: 0 };
+          const EX = window.EX || {};
+          document.querySelectorAll('[data-ex]').forEach((el) => {
+            out.items++;
+            const d = EX[el.dataset.ex];
+            if (!d) out.missing.push(el.dataset.ex); else if (!d.d) out.noDef.push(el.dataset.ex);
+          });
+          out.facts = document.querySelectorAll('.ex-facts .ex-fx').length;
+          // Tables shown at load (a table behind a view switch is not shown, so it does not count).
+          out.tables = document.querySelectorAll('.ex-table').length;
+          out.figures = document.querySelectorAll('.ex-figure svg:not(button svg)').length;
+          // A control icon (the Expand button, a view switch) must stay icon-sized. A broad rule such as
+          // `.ex-figure svg { min-width: 760px }` also hits the icon inside a figure's Expand button.
+          document.querySelectorAll('button svg').forEach((s) => { const b = s.getBoundingClientRect(); if (b.width > 24 || b.height > 24) out.bigIcons++; });
+          document.querySelectorAll('.ex-section').forEach((s) => { if (s.querySelector('.ex-table') && !s.querySelector('svg')) out.tableOnly.push(s.id || '(no id)'); });
+          out.sideways = document.documentElement.scrollWidth > document.documentElement.clientWidth;
+          return out;
+        });
+        if (!r.items) fails.push(`${tag}: no [data-ex] items`);
+        if (r.tables > 1) fails.push(`${tag}: ${r.tables} tables shown at load; at most 1 (pattern.md, "Tables are the last resort")`);
+        if (r.tables && r.tables >= r.figures) fails.push(`${tag}: ${r.tables} table(s) and ${r.figures} diagram(s); diagrams must outnumber tables`);
+        if (r.tableOnly.length) fails.push(`${tag}: sections that open on a table: ${r.tableOnly.join(', ')}; open on a diagram, put the table behind a view switch`);
+        if (r.missing.length) fails.push(`${tag}: items with no EX entry: ${r.missing.join(', ')}`);
+        if (r.noDef.length) fails.push(`${tag}: items with no definition: ${r.noDef.join(', ')}`);
+        if (r.sideways) fails.push(`${tag}: the page scrolls sideways`);
+        if (r.bigIcons) fails.push(`${tag}: ${r.bigIcons} button icon(s) larger than 24px; a figure rule reached a control icon (kit/canvas.js)`);
+        const n = await openAll(page, tag);
+
+        // Every view of every data block draws and its parts open.
+        const blocks = await page.locator('.ex-views').count();
+        for (let i = 0; i < blocks; i++) {
+          const views = await page.locator('.ex-views').nth(i).locator('.ex-seg button').count();
+          for (let j = 0; j < views; j++) {
+            const b = page.locator('.ex-views').nth(i).locator('.ex-seg button').nth(j);
+            const name = await b.textContent();
+            await page.keyboard.press('Escape');
+            await b.click();
+            // Theme redraw runs on the next frame; inspect the committed view, not a retired node.
+            await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+            const hot = page.locator('.ex-views').nth(i).locator('[data-ex]');
+            if (!(await hot.count())) { fails.push(`${tag}: data block ${i} view ${name} has no parts`); continue; }
+            await hot.first().evaluate((e) => e.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+            if (await page.locator('.ex-pop').isHidden()) fails.push(`${tag}: data block ${i} view ${name}: a part opens no pop-up`);
+            await page.keyboard.press('Escape');
+          }
+          await page.locator('.ex-views').nth(i).locator('.ex-seg button').first().click();
+        }
+
+        // A fact in each Facts list must open its item (slow: fallback theme only).
+        if (theme === reg.fallback) {
+          const lists = await page.locator('details.ex-facts').count();
+          for (let i = 0; i < lists; i++) {
+            const det = page.locator('details.ex-facts').nth(i);
+            if (!(await det.locator('.ex-fx').count())) { fails.push(`${tag}: Facts list ${i} is empty`); continue; }
+            await det.evaluate((d) => { d.open = true; });
+            await det.locator('.ex-fx').first().click();
+            await page.waitForTimeout(1700);
+            if (await page.locator('.ex-pop').isHidden()) fails.push(`${tag}: a fact in Facts list ${i} opens no item`);
+            await page.keyboard.press('Escape');
+          }
+        }
+        if (shots) await page.screenshot({ path: path.join(shots, `${path.basename(page0, '.html')}-${theme}-${scheme}-${width}.png`), fullPage: true });
+        console.log(`${tag}: ${r.items} items, ${r.facts} facts, ${n} opened, ${blocks} data blocks`);
+        await ctx.close();
+      }
+    }
+  }
+  await browser.close();
+  if (fails.length) { console.error('FAIL\n' + [...new Set(fails)].join('\n')); process.exit(1); }
+  console.log('PASS');
+})().catch((e) => { console.error(e); process.exit(1); });
