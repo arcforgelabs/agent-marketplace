@@ -104,7 +104,7 @@
   function svg(el, w, h, body, label, minW) {
     el.classList.add('ex-figure');
     var id = el.id || ('exd' + Math.random().toString(36).slice(2, 8));
-    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(label) + '" style="display:block;width:100%;min-width:' + (minW || 0) + 'px;height:auto">' +
+    el.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(label) + '" style="display:block;width:100%;max-width:' + w + 'px;min-width:' + (minW || 0) + 'px;height:auto">' +
       '<defs><marker id="exh-' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ex-head-fill" d="M0 0L10 5L0 10z"/></marker>' +
       '<marker id="exk-' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ex-head-fill--key" d="M0 0L10 5L0 10z"/></marker></defs>' +
       body.replace(/\{M\}/g, id) + '</svg>';

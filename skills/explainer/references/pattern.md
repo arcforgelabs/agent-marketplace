@@ -137,6 +137,6 @@ Substantial OpenClaw explainers get both a full responsive artifact and compact 
 - A proposed change has an after view of the main picture, stamped PROPOSAL, NOT APPROVED.
 - An unknown is a question mark or a dashed line. A guess is not drawn as a fact.
 - Rows keep 44px; the rail picks the right section.
-- Light and dark both work in every theme; 320px has no sideways scroll.
+- Light and dark both work in every theme. Normal charts show every part and label inside the actual container at 320/390/768/wide widths, including a narrow panel on a wide desktop. Check nested figure scrollWidth against clientWidth, not only document overflow. Reflow/rearrange/stack and wrap labels: no horizontal chart scrolling, tiny scaled text or overflow clipping. Expand is optional detail, never required to see content.
 - One theme button. Contrast meets Web Content Accessibility Guidelines, level AA, in every theme (`scripts/check`).
 - A headless browser test shows no page errors and opens every item and every view.

@@ -38,8 +38,8 @@ All paths are relative to this skill folder.
 | `kit/explainer.js` | The runtime: pop-ups, Facts lists, tick rail, and `themeEngine` (the theme button). |
 | `examples/starter.html` | Copy this to start a page. |
 | `examples/explainer-kit.html` | A full page that uses every renderer. |
-| `scripts/bundle` | Inlines the kit into one self-contained web page. |
-| `scripts/check` | Headless check, in every theme, light and dark, 390px and 1280px: page errors, one theme button, every part and every view opens, at most one table at load and no section that opens on a table, Web Content Accessibility Guidelines (WCAG), level AA contrast, no literal colours, no sideways scroll. The theme menu and the default order once. |
+| `scripts/bundle` | Inlines the kit into one self-contained web page. Classic local scripts execute in order under the stock OpenClaw policy; no data-script or eval grant. Module, async/defer, document.write and escaped HTML script states are rejected rather than changed. |
+| `scripts/check` | Headless check, in every theme, light and dark, 320px, 390px, 768px and 1280px: page errors, one theme button, every part and every view opens, at most one table at load and no section that opens on a table, Web Content Accessibility Guidelines (WCAG), level AA contrast, no literal colours, no sideways scroll. The theme menu and the default order once. |
 | `scripts/sync-themes` | Writes `kit/themes.js` from `kit/tokens.css`, `arcforgelabs/themes` and Flow. |
 | `references/formats/README.md` | The format router: which reply format fits a reader's need, and its guide. |
 | `references/formats/ui-walkthrough.md` | User interface walkthrough video: when to record, tiers, shot list, clip check, delivery. |
@@ -103,7 +103,7 @@ To add a theme, add it to its owner (`arcforgelabs/themes` for a shadcn preset, 
 
 ## Deliver the page
 
-OpenClaw is the public support target. Read `references/openclaw-delivery.md` before delivery: a substantial explainer gets a full responsive artifact AND a compact inline companion from the same facts. Native controls and saved records first; never fabricate a decision or status control. Claude Code and Cursor below are basic internal fallbacks, not public parity.
+OpenClaw is the public support target. Read `references/openclaw-delivery.md` before delivery: a substantial explainer gets a full responsive artifact AND a compact inline companion from the same facts. The compact reference navigates to the existing decision owner; it is not the native choice card and cannot answer it. Native controls and saved records first; never fabricate a decision or status control. Claude Code and Cursor below are basic internal fallbacks, not public parity.
 
 The source page is the same everywhere. Only the delivery changes.
 

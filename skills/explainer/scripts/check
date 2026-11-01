@@ -26,12 +26,7 @@ const file = path.resolve(page0), url = 'file://' + file;
 const fails = [];
 
 /* ---- No literal colours in the page (kit files inlined by scripts/bundle are skipped). ---- */
-function literals(html) {
-  const src = html.replace(/<script[^>]*data-ex-font-licences[^>]*>[\s\S]*?<\/script>/g, '').replace(/<(style|script)[^>]*data-ex-kit[^>]*>[\s\S]*?<\/\1>/g, '').replace(/<link[^>]*>/g, '');
-  const parts = [];
-  src.replace(/<style[^>]*>([\s\S]*?)<\/style>/g, (m, css) => parts.push(['style', css]));
-  src.replace(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g, (m, js) => parts.push(['script', js]));
-  src.replace(/\s(style|fill|stroke|color|stop-color|bgcolor)="([^"]*)"/g, (m, a, v) => parts.push([a, v]));
+function literals(parts) {
   const named = 'red|green|blue|white|black|grey|gray|orange|yellow|purple|pink|navy|teal|silver|maroon|olive|lime|aqua|fuchsia';
   const bad = [
     /(^|[\s:,("'=])#[0-9a-f]{3,8}\b(?![-\w])/i,
@@ -47,7 +42,6 @@ function literals(html) {
   }
   return found;
 }
-for (const l of literals(fs.readFileSync(file, 'utf8'))) fails.push('literal colour in the page (use a token): ' + l);
 
 /* ---- Token pairs: [name, foreground, surface layers (bottom first), minimum]. 4.5 text, 3 marks (WCAG 1.4.3, 1.4.11). ---- */
 const PAIRS = [
@@ -103,6 +97,19 @@ async function pickTheme(page, id) {
   // Palette/layout checks do not need remote font/CDN networking; glyph proof is separate.
   async function contextFor(options) { const context = await browser.newContext(options); await context.route('https://**/*', route => route.request().url().startsWith('https://explainer.check/') ? route.fallback() : route.abort()); return context; }
   const probe = await (await contextFor()).newPage();
+  // Parse source as inert HTML with the browser's HTML parser. This is a colour
+  // lint, not a sanitizer: never delete tags and reparse the remaining string.
+  const parts = await probe.evaluate(html => {
+    const doc = new DOMParser().parseFromString(html, 'text/html'), parts = [];
+    for (const el of doc.querySelectorAll('style,script:not([src])')) {
+      if (!el.hasAttribute('data-ex-kit') && !el.hasAttribute('data-ex-font-licences')) parts.push([el.localName, el.textContent]);
+    }
+    for (const el of doc.querySelectorAll('*')) for (const name of ['style','fill','stroke','color','stop-color','bgcolor']) {
+      if (el.hasAttribute(name)) parts.push([name, el.getAttribute(name)]);
+    }
+    return parts;
+  }, fs.readFileSync(file, 'utf8'));
+  for (const l of literals(parts)) fails.push('literal colour in the page (use a token): ' + l);
   await probe.goto(url, { waitUntil: 'load' });
   const reg = await probe.evaluate(() => ({ themes: window.ExThemes ? window.ExThemes.themes.map((t) => t.id) : [], fallback: window.ExThemes && window.ExThemes.fallback, api: !!window.ExTheme }));
   if (!reg.themes.length) fails.push('no themes: load kit/themes.js before kit/explainer.js');
@@ -184,10 +191,69 @@ async function pickTheme(page, id) {
     console.log('viewer policy: checked');
   }
 
+  /* ---- Actual containers on a wide desktop, not just the document viewport. ---- */
+  {
+    const ctx = await contextFor({ viewport: { width: 1280, height: 1000 } });
+    const page = await ctx.newPage();
+    await page.goto(url, { waitUntil: 'load' });
+    for (const width of [320, 390, 768, 1280]) {
+      await page.evaluate(w => { for (const shell of document.querySelectorAll('.ex-shell')) { shell.style.width = w + 'px'; shell.style.maxWidth = '100%'; } }, width);
+      await page.waitForTimeout(100);
+      async function inspect(suffix) {
+      const bad = await page.locator('.ex-figure').evaluateAll(figures => figures.flatMap((figure, i) => {
+        const issues = [];
+        if (figure.scrollWidth > figure.clientWidth + 1) issues.push('horizontal chart overflow');
+        for (const el of figure.querySelectorAll('*')) {
+          if (el.clientWidth && el.scrollWidth > el.clientWidth + 1) issues.push('nested chart overflow');
+        }
+        for (const svg of figure.querySelectorAll('svg:not(button svg)')) {
+          const box = svg.viewBox.baseVal;
+          if (!box.width) continue;
+          for (const text of svg.querySelectorAll('text')) {
+            const r = text.getBBox();
+            if (r.width && (r.x < box.x - 1 || r.x + r.width > box.x + box.width + 1)) issues.push('label outside SVG view box');
+          }
+        }
+        for (const svg of figure.querySelectorAll(':scope > svg')) {
+          const bounds = svg.getBoundingClientRect();
+          for (const label of svg.querySelectorAll('foreignObject .ex-reflow')) {
+            const r = label.getBoundingClientRect();
+            if (r.bottom > bounds.bottom + 1) issues.push('wrapping chart content clipped vertically');
+          }
+          for (const label of svg.querySelectorAll('text, foreignObject [data-ex]')) {
+            const r = label.getBoundingClientRect();
+            if (r.width && (r.left < bounds.left - 1 || r.right > bounds.right + 1 || r.top < bounds.top - 1 || r.bottom > bounds.bottom + 1)) issues.push('painted part or label outside chart');
+          }
+          const scale = svg.getScreenCTM();
+          if (scale && scale.a < 0.98) issues.push('chart text shrunk to fit');
+        }
+        return [...new Set(issues)].map(issue => 'figure ' + i + ': ' + issue);
+      }));
+      for (const issue of bad) fails.push('desktop container ' + width + 'px' + suffix + ': ' + issue + '; reflow the normal chart, Expand is optional');
+      }
+      await inspect('');
+      // Every alternative is also a normal view, not an escape from the fit rule.
+      const blocks = await page.locator('.ex-views').count();
+      for (let i = 0; i < blocks; i++) {
+        const block = page.locator('.ex-views').nth(i);
+        const initial = await block.locator('.ex-seg button[aria-pressed="true"]').getAttribute('data-view');
+        const choices = await block.locator('.ex-seg button').evaluateAll(es => es.map(e => e.dataset.view));
+        for (const choice of choices) {
+          await block.locator('.ex-seg button').evaluateAll((es, id) => es.find(e => e.dataset.view === id).click(), choice);
+          await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+          await inspect(' view ' + i + '/' + choice);
+        }
+        await block.locator('.ex-seg button').evaluateAll((es, id) => es.find(e => e.dataset.view === id).click(), initial);
+      }
+    }
+    await ctx.close();
+    console.log('chart containers: checked 320/390/768/1280px on desktop');
+  }
+
   /* ---- Every theme, both modes, both widths. ---- */
   for (const theme of themes) {
     for (const scheme of ['light', 'dark']) {
-      for (const width of [390, 1280]) {
+      for (const width of [320, 390, 768, 1280]) {
         const tag = `${theme} ${scheme} ${width}px`;
         const ctx = await contextFor({ viewport: { width, height: 900 }, colorScheme: scheme });
         const page = await ctx.newPage();

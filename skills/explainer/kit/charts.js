@@ -306,9 +306,9 @@
       return { label: r.label, value: r.value, layer: r.layer, ex: r.ex || { t: r.label, l: o.layer || 'Value', d: r.label + ' is one part of ' + (o.label || 'the total') + '.', x: ['Its value is ' + r.value + u + '.', 'That is ' + Math.round(100 * r.value / limit) + '% of ' + limit + u + '.'] } };
     });
     var all = {
-      chart: { id: 'chart', label: 'Chart', draw: function (b) { bars(b, { label: o.label, unit: u, rows: rows }); } },
+      chart: { id: 'chart', label: 'Chart', draw: function (b) { api.bars(b, { label: o.label, unit: u, rows: rows }); } },
       table: { id: 'table', label: 'Table', draw: function (b) { table(b, { cols: o.cols || ['Part', 'Value', 'Share'], rows: rows.map(function (r) { return { cells: [r.label, r.value + u, Math.round(100 * r.value / limit) + '%'], ex: r.ex }; }) }); } },
-      diagram: { id: 'diagram', label: 'Diagram', draw: function (b) { capacity(b, { label: o.label, unit: u, limit: limit, rows: [{ label: o.total || 'Total', parts: rows.map(function (r, i) { return { label: r.label, value: r.value, layer: r.layer || (i % 2 ? 'alt' : ''), ex: r.ex }; }) }] }); } }
+      diagram: { id: 'diagram', label: 'Diagram', draw: function (b) { api.capacity(b, { label: o.label, unit: u, limit: limit, rows: [{ label: o.total || 'Total', parts: rows.map(function (r, i) { return { label: r.label, value: r.value, layer: r.layer || (i % 2 ? 'alt' : ''), ex: r.ex }; }) }] }); } }
     };
     return views(el, { label: o.label, start: o.start, views: (o.views || ['chart', 'table', 'diagram']).map(function (id) { return all[id]; }) });
   }
@@ -398,6 +398,105 @@
     return r;
   }
 
+  // The wide SVG remains useful when it fits at its authored text size. A narrow
+  // chart uses the same parts/identities in a wrapping, family-specific layout,
+  // not a scaled drawing or a scroll surface. ForeignObject keeps optional
+  // canvas/pop-up expansion on the same SVG contract.
+  function contentWidth(el) { var style = getComputedStyle(el); return el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight); }
+  function reflow(el, kind, o, source) {
+    var keys = [].map.call(source.querySelectorAll('[data-ex]'), function (e) { return e.dataset.ex; });
+    function node(title, sub, layer, hasKey) {
+      var k = hasKey ? keys.shift() : '', tag = k ? 'button' : 'div';
+      return '<' + tag + (k ? ' type="button" data-ex="' + esc(k) + '"' : '') + ' class="' + mod('ex-node', layer) + '">' + esc(title) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</' + tag + '>';
+    }
+    function bar(value, max, layer, series) { return '<div class="ex-reflow-track"><i class="' + mod('ex-reflow-mark', layer) + '" style="width:' + (100 * value / max) + '%' + (series != null && !layer ? ';background:var(--series-' + (series % 5 + 1) + ')' : '') + '"></i></div>'; }
+    var h = '', u = o.unit || '';
+    if (kind === 'container') o.zones.forEach(function (z) {
+      h += '<section class="ex-reflow-zone">' + node(z.title, '', z.layer, z.ex) + '<div class="ex-reflow-grid">';
+      z.items.forEach(function (it) { h += node(it.title, it.sub, it.layer, it.ex); }); h += '</div></section>';
+    });
+    if (kind === 'connection') {
+      var edgeKeys = (o.edges || []).map(function (e) { return e.label && e.ex ? keys.shift() : ''; });
+      o.nodes.forEach(function (n) { h += node(n.title, n.sub, n.layer, n.ex); (o.edges || []).filter(function (e) { return e.from === n.id; }).forEach(function (e) {
+        var target = o.nodes.find(function (n) { return n.id === e.to; }), k = edgeKeys[o.edges.indexOf(e)];
+        h += '<div class="ex-connection-link"' + (k ? ' data-ex="' + esc(k) + '"' : '') + '>' + esc((e.label || 'Connects') + ' → ' + target.title) + '</div>';
+      }); });
+    }
+    if (kind === 'bars') {
+      var max = o.max || Math.max.apply(null, o.rows.map(function (r) { return r.value; }));
+      o.rows.forEach(function (r, i) { h += '<section>' + node(r.label, r.value + u, r.layer, true) + bar(r.value, max, r.layer === 'key' ? 'key' : '', i) + '</section>'; });
+    }
+    if (kind === 'capacity') {
+      var scale = Math.max.apply(null, [o.limit].concat(o.rows.map(function(r){return r.parts.reduce(function(sum,p){return sum+p.value;},0);})));
+      o.rows.forEach(function (r) {
+        h += '<section><strong>' + esc(r.label) + ' · ' + esc(o.limit + u) + ' limit</strong><div class="ex-reflow-stack">';
+        r.parts.forEach(function (p) { h += '<i class="' + mod('ex-reflow-mark', p.layer) + '" style="width:' + (100*p.value/scale) + '%"></i>'; });
+        h += '<b class="ex-reflow-limit" style="left:' + (100*o.limit/scale) + '%" aria-label="' + esc(o.limit+u) + ' limit"></b></div><div class="ex-reflow-grid">';
+        var used = r.parts.reduce(function (sum,p) { return sum+p.value; },0);
+        r.parts.forEach(function (p) { h += node(p.label, p.value + u + ' · ' + Math.round(100 * p.value / o.limit) + '%', p.layer, true); });
+        h += '</div><p>' + Math.round(100 * used / o.limit) + '% used · scale 0 → ' + esc(scale+u) + '</p></section>';
+      });
+    }
+    if (kind === 'heatmap') {
+      var flat = [].concat.apply([], o.values), lo = Math.min.apply(null, flat), hi = Math.max.apply(null, flat);
+      o.rows.forEach(function (r, i) {
+        h += '<section><strong>' + esc(r) + '</strong><div class="ex-reflow-grid">';
+        o.cols.forEach(function (c, j) { var v = o.values[i][j], t = hi === lo ? 1 : (v - lo) / (hi - lo);
+          var fill = t < .5 ? 'color-mix(in oklab, var(--seq-2) ' + Math.round(t * 200) + '%, var(--seq-1))' : 'color-mix(in oklab, var(--seq-3) ' + Math.round((t - .5) * 200) + '%, var(--seq-2))';
+          h += '<div>' + node(c, (o.fmt || String)(v), '', true) + '<div class="ex-reflow-swatch" style="background:' + fill + '"></div></div>';
+        }); h += '</div></section>';
+      });
+    }
+    if (kind === 'sankey') {
+      var linkKeys = keys.splice(0, o.links.length), byId = {}, flowMax = Math.max.apply(null, o.nodes.map(function(n){return n.v;}));
+      h += '<p>Band scale 0 → ' + esc(flowMax+u) + '</p>';
+      o.nodes.forEach(function (n) { byId[n.id] = n; });
+      // Nodes and labelled amount bands stay explicit, including zero-free flows.
+      o.nodes.forEach(function (n) {
+        h += '<section>' + node(n.title, n.v + u, n.layer, true);
+        o.links.forEach(function (l, i) { if (l.from !== n.id) return;
+          h += '<button type="button" class="ex-node" data-ex="' + esc(linkKeys[i]) + '">' + esc(n.title + ' → ' + byId[l.to].title) + '<small>' + esc(l.value + u) + '</small>' + bar(l.value, flowMax, l.layer) + '</button>';
+        }); h += '</section>';
+      });
+    }
+    if (kind === 'timeline') {
+      var events = (o.events || []).slice().sort(function (a, b) { return Date.parse(a.at) - Date.parse(b.at); });
+      var spans = o.spans || [], today = new Date().toISOString().slice(0,10);
+      var dates = events.map(function(e){return e.at;}).concat([].concat.apply([], spans.map(function(s){return [s.from,s.to || o.end || today];})));
+      if(o.start) dates.push(o.start); if(o.end) dates.push(o.end);
+      dates.sort(); var first = Date.parse(dates[0]), last = Date.parse(dates[dates.length-1]);
+      var duration = last - first || 864e5;
+      function point(date) { return 100 * (Date.parse(date) - first) / duration; }
+      h += '<div class="ex-reflow-axis"><span>' + esc(dates[0]) + '</span><span>' + esc(dates[dates.length-1]) + '</span></div>';
+      // Each row shares the same real time scale; labels wrap above its mark.
+      events.forEach(function(e){var x=point(e.at);
+        h += '<section>' + node(e.title, e.at + (e.sub ? ' · ' + e.sub : ''), e.layer, true) + '<div class="ex-reflow-track ex-reflow-dates"><i class="ex-reflow-datepoint" style="left:calc(' + x + '% - ' + (8*x/100) + 'px)"></i></div></section>';
+      });
+      spans.forEach(function(span){var from=point(span.from), to=point(span.to || o.end || today);
+        h += '<section>' + node(span.title, span.from + ' → ' + (span.to || o.end || today), span.layer || 'alt', true) + '<div class="ex-reflow-track"><i class="ex-reflow-mark" style="margin-left:' + from + '%;width:' + (to-from) + '%"></i></div></section>';
+      });
+    }
+    if (kind === 'tree') {
+      var ids = new Map();
+      (function collect(n) { (n.children || []).forEach(collect); if (n.ex) ids.set(n, keys.shift()); })(o.root);
+      (function branch(n) {
+        h += '<li>' + (n.edge ? '<span>' + esc(n.edge) + ' ↓</span>' : '') + '<div class="' + mod('ex-node', n.layer) + '"' + (ids.has(n) ? ' data-ex="' + esc(ids.get(n)) + '"' : '') + '>' + esc(n.title) + (n.sub ? '<small>' + esc(n.sub) + '</small>' : '') + '</div>';
+        if (n.children && n.children.length) { h += '<ul>'; n.children.forEach(branch); h += '</ul>'; } h += '</li>';
+      })(o.root);
+      h = '<ul class="ex-reflow-tree">' + h + '</ul>';
+    }
+    el.innerHTML = '<div xmlns="http://www.w3.org/1999/xhtml" class="ex-reflow">' + h + '</div>';
+    var content = el.firstChild, w = contentWidth(el);
+    var drawing = svg(el, w, 1, o.label, '', '', w);
+    if (source.dataset.view) drawing.dataset.view = source.dataset.view;
+    var foreign = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+    foreign.setAttribute('width', w); foreign.setAttribute('height', 1); foreign.appendChild(content); drawing.appendChild(foreign);
+    // Measure with final SVG-descendant styles, not a temporary HTML sibling.
+    var height = Math.ceil(content.getBoundingClientRect().height);
+    foreign.setAttribute('height', height); drawing.setAttribute('viewBox', '0 0 ' + w + ' ' + height);
+    return drawing;
+  }
+
   /* ---- Keep each chart with its data, so a theme change can draw it again with the same keys. ---- */
   var count = 0;
   function run(el, kind, o) {
@@ -414,10 +513,22 @@
     document.dispatchEvent(new CustomEvent('ex:drawn', { detail: { el: null } }));
   }
   var api = { connection: connection, container: container, capacity: capacity, heatmap: heatmap, sankey: sankey, bars: bars, timeline: timeline, tree: tree, tabs: tabs, table: table, views: views, data: data };
+  // The leaf renderer owns fit; view switches keep their existing state owner.
+  ['connection','container','capacity','heatmap','sankey','bars','timeline','tree'].forEach(function (kind) {
+    var draw = api[kind];
+    api[kind] = function (el, o) {
+      var result = draw(el, o);
+      if (!result || result.localName !== 'svg' || !el.clientWidth) return result;
+      var box = result.viewBox.baseVal;
+      var outside = [].some.call(result.querySelectorAll('text'), function (t) { var r = t.getBBox(); return r.x < box.x || r.x + r.width > box.x + box.width; });
+      return box.width > contentWidth(el) || outside ? reflow(el, kind, o, result) : result;
+    };
+  });
   var pub = { redraw: redraw, rgba: rgba, contrast: contrast };
   Object.keys(api).forEach(function (kind) {
     pub[kind] = function (el, o) {
       if (depth) return api[kind](el, o);
+      if (observer) observer.observe(el);
       drawn = drawn.filter(function (d) { return d.el !== el; }); drawn.push({ el: el, kind: kind, o: o });
       return run(el, kind, o);
     };
@@ -425,11 +536,11 @@
   if (window.ResizeObserver) {
     var widths = new WeakMap(), resizeFrame = 0;
     var observer = new ResizeObserver(function (entries) {
-      var changed = entries.some(function (entry) {var narrow = entry.contentRect.width < 700, old = widths.get(entry.target); widths.set(entry.target, narrow); return old !== undefined && old !== narrow;});
+      var changed = entries.some(function (entry) {var width = entry.contentRect.width, old = widths.get(entry.target); widths.set(entry.target, width); return old !== undefined && Math.abs(old - width) > 1;});
       if (changed && !resizeFrame) resizeFrame = requestAnimationFrame(function () {resizeFrame = 0; redraw();});
     });
-    var connectionPublic = pub.connection;
-    pub.connection = function (el, o) {observer.observe(el); return connectionPublic(el, o);};
+
   }
+  if (document.fonts) document.fonts.addEventListener('loadingdone', redraw);
   window.ExCharts = pub;
 })();

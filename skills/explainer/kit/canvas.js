@@ -81,7 +81,7 @@
       var host = hostOf(svg);
       if (!host || host.getAttribute('data-canvas') === 'off' || host.querySelector(':scope > .ex-expand')) return;
       var vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
-      if (vb.length < 4 || vb[2] < 320 || vb[3] < 120) return;
+      if (vb.length < 4 || vb[2] < 120 || vb[3] < 120) return;
       host.classList.add('ex-canvas-host');
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'ex-expand';

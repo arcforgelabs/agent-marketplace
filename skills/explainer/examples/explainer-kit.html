@@ -667,7 +667,7 @@ Object.assign(window.EX, {
     'A page adds its own icon with ExDraw.icons.']},
   'd.phone': {t: 'Phone', l: 'ICON', d: 'The phone stands for the 390 pixel check width.', x: [
     'scripts/check opens every page at 390 and 1280 pixels.',
-    'A wide figure scrolls inside its card on a phone.']},
+    'The normal figure reflows so every part fits on a phone.']},
   'r.core': {t: 'One bad token', l: 'IMPACT', d: 'The point of impact is where the failure starts.', x: [
     'Here a wrong colour token is the example failure.',
     'Rings spread out to show how far it reaches.']},
@@ -676,7 +676,34 @@ Object.assign(window.EX, {
   'r.3': {t: 'Other pages', l: 'RING', d: 'Other pages hold their own copy of the kit.', x: ['A dashed ring means not reached.']}
 });
 (function () {
-  var D = ExDraw, b = '';
+ function drawPictures() {
+  var D = ExDraw, b = '', host = document.getElementById('fig-drawn'), ringHost = document.getElementById('fig-rings');
+  var width = host.clientWidth;
+  if (width < 900) {
+    var w = width, cx = w / 2, y = 76;
+    b += D.stamp(16, 30, 'SYNTHETIC');
+    [['d.tokens','gear','tokens.css'],['d.charts','gauge','charts.js'],['d.draw','spark','draw.js'],['d.runtime','terminal','explainer.js']].forEach(function(k,i){
+      b += D.badge(cx,y,{r:24,icon:k[1],title:k[2],ex:k[0]});
+      y += 100;
+    });
+    b += D.arrow('M'+cx+' '+(y-24)+'V'+(y+16),{id:'narrow-kit'}) + D.dots('narrow-kit',2,2.6);
+    y += 44;
+    b += D.hit('d.page','<rect class="ex-box ex-box--key" x="'+(cx-70)+'" y="'+y+'" width="140" height="150" rx="10"/>'+D.icon('vault',cx-15,y+22,30,'key')+'<path class="ex-lead" d="M'+(cx-50)+' '+(y+76)+'h100M'+(cx-50)+' '+(y+96)+'h80"/>'+D.t(cx,y+132,'One page','ex-t','middle'));
+    y += 170;
+    b += D.arrow('M'+cx+' '+y+'v32',{id:'narrow-out'})+D.dots('narrow-out',2,2.4); y += 80;
+    b += D.logo(cx,y,{r:26,src:GITHUB_LOGO,ex:'d.repo',title:'Repository'}); y += 100;
+    b += D.badge(cx,y,{r:26,icon:'globe',ex:'d.browser',title:'Browser'}); y += 100;
+    b += D.badge(cx,y,{r:26,icon:'phone',tone:'off',ex:'d.phone',title:'Phone'});
+    D.svg(host,w,y+80,b,'Kit files enter one page; the page goes to a repository, browser and phone',w);
+    // Same impact, drawn as centred concentric rings with its labels below.
+    var rw=ringHost.clientWidth, rc=rw/2, radii=[Math.min(110,rc-18),Math.min(80,rc-42),40];
+    var rings='';
+    ['r.3','r.2','r.1'].forEach(function(k,i){rings+=D.hit(k,'<circle class="ex-ring '+(i===2?'ex-ring--hit':'ex-ring--safe')+'" cx="'+rc+'" cy="130" r="'+radii[i]+'"/>');});
+    rings+=D.hit('r.core',D.icon('warn',rc-14,116,28,'key'));
+    [['r.core','One bad token'],['r.1','Every figure · reached'],['r.2','Every theme · not reached'],['r.3','Other pages · not reached']].forEach(function(k,i){rings+=D.hit(k[0],D.t(rc,280+i*34,k[1],'ex-t','middle'));});
+    D.svg(ringHost,rw,410,rings,'One bad token reaches every figure, but not other themes or pages',rw);
+    return;
+  }
   /* the page: a sheet with lines and one chart */
   b += D.hit('d.page', '<rect class="ex-box ex-box--key" x="380" y="70" width="200" height="250" rx="10"/>' +
     '<rect class="ex-box" x="404" y="96" width="152" height="70" rx="6"/>' + D.icon('vault', 466, 116, 30, 'key') +
@@ -688,13 +715,13 @@ Object.assign(window.EX, {
     var y = k[3], key = k[0] === 'd.draw';
     b += D.arrow('M184 ' + y + ' C 270 ' + y + ', 290 ' + (150 + i * 30) + ', 376 ' + (150 + i * 30), {id: 'kf' + i, tone: key ? 'key' : ''});
     b += D.dots('kf' + i, 2, 2.6 + i * 0.3, key ? 'key' : '');
-    b += D.hit(k[0], '<circle class="ex-disc' + (key ? ' ex-disc--key' : '') + '" cx="150" cy="' + y + '" r="26"/>' + D.icon(k[1], 136, y - 14, 28, key ? 'key' : '') + D.t(112, y + 4, k[2], 'ex-tl', 'end'));
+    b += D.hit(k[0], '<circle class="ex-disc' + (key ? ' ex-disc--key' : '') + '" cx="150" cy="' + y + '" r="26"/>' + D.icon(k[1], 136, y - 14, 28, key ? 'key' : '') + D.t(150, y + 46, k[2], 'ex-tl', 'middle'));
   });
   b += D.arrow('M584 150 C 660 120, 700 100, 742 96', {id: 'out1'}) + D.arrow('M584 200 C 660 200, 700 200, 742 200') + D.arrow('M584 250 C 660 280, 700 300, 742 304', {tone: 'off'});
   b += D.dots('out1', 2, 2.4);
   b += D.logo(790, 96, {r: 30, src: GITHUB_LOGO, ex: 'd.repo', title: 'Repository', sub: 'logo plate'});
   b += D.badge(790, 200, {r: 30, icon: 'globe', ex: 'd.browser', title: 'Browser', sub: 'icon disc'});
-  b += D.badge(790, 304, {r: 30, icon: 'phone', tone: 'off', ex: 'd.phone', title: 'Phone', sub: 'dashed: checked, not used'});
+  b += D.badge(790, 304, {r: 30, icon: 'phone', tone: 'off', ex: 'd.phone', title: 'Phone', sub: 'checked, not used'});
   b += D.stamp(20, 30, 'SYNTHETIC') + D.t(130, 30, 'The kit files flow into one page', 'ex-ts');
   D.svg(document.getElementById('fig-drawn'), 900, 390, b, 'Four kit files flow into one page, which goes to a repository, a browser and a phone', 700);
   D.svg(document.getElementById('fig-rings'), 760, 330, D.rings(170, 165, [
@@ -702,6 +729,11 @@ Object.assign(window.EX, {
     {r: 118, ex: 'r.2', title: 'Every theme', sub: 'not reached'},
     {r: 156, ex: 'r.3', title: 'Other pages', sub: 'not reached'}
   ], {r: 40, ex: 'r.core', icon: 'warn', title: 'bad token'}), 'Blast radius of one bad colour token', 620);
+ }
+ drawPictures();
+ var lastWidth=0, frame=0;
+ new ResizeObserver(function(entries){var width=entries[0].contentRect.width;if(Math.abs(width-lastWidth)>1){lastWidth=width;if(!frame)frame=requestAnimationFrame(function(){frame=0;drawPictures();});}}).observe(document.getElementById('fig-drawn'));
+ document.addEventListener('ex:theme',drawPictures);
 })();
 </script>
 <script src="../kit/explainer.js"></script>

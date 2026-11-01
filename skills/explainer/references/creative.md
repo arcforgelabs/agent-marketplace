@@ -79,7 +79,7 @@ Answer each line before `scripts/check`. A "no" is a fix in this draft, not a no
 
 ## Drawing rules
 
-- Draw in a fixed view box. Give `ExDraw.svg` a minimum width so a wide figure scrolls inside its card on a phone.
+- The normal chart must fit its actual container with every part and label visible. Reflow, rearrange or stack the drawing and wrap labels at narrow widths; never use horizontal chart scrolling, tiny scaled text or overflow clipping as a fix. Expand remains optional detail, never the only way to see the chart.
 - Text in a figure uses the kit classes: `ex-t` (title), `ex-ts` (sub line), `ex-tm` (mono capitals), `ex-ta` (red mono), `ex-tl` (mono label).
 - Shapes use the kit classes: `ex-box`, `ex-disc`, `ex-plate`, `ex-ring`, `ex-core`, `ex-solid`, `ex-lead`, `ex-line`, each with `--key`, `--alt` or `--off`. Add a page class only for a shape the kit does not have, and give it token colours only.
 - Every part a reader can ask about has `data-ex` (use `ExDraw.hit` or the `ex` option). The runtime opens its pop-up.
