@@ -20,26 +20,20 @@ Reusable release workflows: https://github.com/openclaw/release-workflows.
 
 ## Marketplace safeguards
 
-### Layout
+### Source and delivery
 
-Each package lives once, in `plugins/<name>/`. A skill package holds one copy of the skill at `skills/<name>/SKILL.md`, which every platform reads unchanged (Agent Skills format). Only the wrappers differ, and they are generated, not hand-written:
+OpenClaw plugins live under plugins/<name>/openclaw. Maintain implementations
+in arcforgelabs/tools and copy only reviewed, provenance-tracked release payloads.
+ClawHub is the only public release channel; source merge is not publication or
+activation. Private account profiles and credentials never belong here.
 
-| File | Read by |
-| --- | --- |
-| `plugins/<name>/plugin.json` (Agent Plugins format, agent-plugins.org) | Codex, Cursor |
-| `plugins/<name>/.claude-plugin/plugin.json` | Claude |
-| `.agents/plugins/marketplace.json` | Codex |
-| `.cursor-plugin/marketplace.json` | Cursor |
-| `.claude-plugin/marketplace.json` | Claude |
+The generic Claude/Codex/Cursor publisher is retired. Do not run the removed
+forge-tools skills cloud publish command. Four stale generic packages are
+removed; the catalogs retain only the legacy explainer consumer pending its
+owning migration (Tools issue 396 and marketplace PR 35). Its generated payload
+must not be edited by hand. OpenClaw candidate PR 44 is separate and unactivated.
 
-Skill packages (`PROVENANCE.json` with `kind: skill`) come from `arcforgelabs/tools` through `forge-tools skills cloud publish`. Fix a skill there, not here. OpenClaw packages keep their own layout under `plugins/<name>/openclaw/`.
-
-### Install
-
-The marketplace is `arc-forge-agents`, from `arcforgelabs/marketplace`.
-
-- **Claude** (claude.ai, Cowork, Claude Code cloud sessions and project threads): on claude.ai open **Customize > Plugins > Add > Add marketplace**, enter `arcforgelabs/marketplace`, turn on **Sync automatically**, then install the plugins you want. Claude Code CLI: `claude plugin marketplace add arcforgelabs/marketplace`, then `claude plugin install <name>@arc-forge-agents`.
-- **Codex**: `codex plugin marketplace add arcforgelabs/marketplace`, then `codex plugin add <name>@arc-forge-agents`.
-- **Cursor**: import `arcforgelabs/marketplace` as a team marketplace, then install the plugins you want. A Cloud Agent keeps the plugin versions it started with.
-- **OpenClaw**: install an OpenClaw package with the steps in its `plugins/<name>/README.md`. For a skill package, run `openclaw skills install` on `plugins/<name>/skills/<name>/`.
-- **Any other harness that reads Agent Skills**: copy `plugins/<name>/skills/<name>/` into that harness's skills folder.
+Do not infer that integrations are unused because no tool bundles were sold.
+Preserve Field, Fergus, Xero and other operator integrations until their own
+consumer and release references are checked. Read CONTRIBUTING.md for remaining
+legacy consumers and source/release safeguards.

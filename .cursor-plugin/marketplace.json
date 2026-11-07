@@ -12,29 +12,9 @@
   },
   "plugins": [
     {
-      "name": "agent-handoff",
-      "source": "agent-handoff",
-      "description": "Hand coding work to another agent (Cursor, Codex, Claude, Copilot, an OpenClaw agent) through GitHub: a self-contained issue, a mention comment, a claim check, CI nudges and a merge gate."
-    },
-    {
-      "name": "building-plugins",
-      "source": "building-plugins",
-      "description": "Create Claude Code plugins: manifests, skills, hooks, MCPs."
-    },
-    {
-      "name": "contributing-upstream",
-      "source": "contributing-upstream",
-      "description": "Prepare upstream open source issues, PRs, and comments."
-    },
-    {
       "name": "explainer",
       "source": "explainer",
       "description": "Visual explainer pages: diagrams first, every part opens a definition. Includes a chart catalogue, a theme kit and a format guide for replies."
-    },
-    {
-      "name": "mermaid-diagrams",
-      "source": "mermaid-diagrams",
-      "description": "Create/update Mermaid diagrams: dataflow, architecture, syntax."
     }
   ]
 }

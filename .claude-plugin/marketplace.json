@@ -10,54 +10,10 @@
   },
   "plugins": [
     {
-      "name": "agent-handoff",
-      "source": "./plugins/agent-handoff",
-      "description": "Hand coding work to another agent (Cursor, Codex, Claude, Copilot, an OpenClaw agent) through GitHub: a self-contained issue, a mention comment, a claim check, CI nudges and a merge gate.",
-      "version": "0.1.1",
-      "author": {
-        "name": "Arc Forge Labs"
-      },
-      "repository": "https://github.com/arcforgelabs/marketplace",
-      "license": "MIT"
-    },
-    {
-      "name": "building-plugins",
-      "source": "./plugins/building-plugins",
-      "description": "Create Claude Code plugins: manifests, skills, hooks, MCPs.",
-      "version": "0.1.1",
-      "author": {
-        "name": "Arc Forge Labs"
-      },
-      "repository": "https://github.com/arcforgelabs/marketplace",
-      "license": "MIT"
-    },
-    {
-      "name": "contributing-upstream",
-      "source": "./plugins/contributing-upstream",
-      "description": "Prepare upstream open source issues, PRs, and comments.",
-      "version": "0.1.1",
-      "author": {
-        "name": "Arc Forge Labs"
-      },
-      "repository": "https://github.com/arcforgelabs/marketplace",
-      "license": "MIT"
-    },
-    {
       "name": "explainer",
       "source": "./plugins/explainer",
       "description": "Visual explainer pages: diagrams first, every part opens a definition. Includes a chart catalogue, a theme kit and a format guide for replies.",
       "version": "0.1.10",
-      "author": {
-        "name": "Arc Forge Labs"
-      },
-      "repository": "https://github.com/arcforgelabs/marketplace",
-      "license": "MIT"
-    },
-    {
-      "name": "mermaid-diagrams",
-      "source": "./plugins/mermaid-diagrams",
-      "description": "Create/update Mermaid diagrams: dataflow, architecture, syntax.",
-      "version": "0.1.0",
       "author": {
         "name": "Arc Forge Labs"
       },

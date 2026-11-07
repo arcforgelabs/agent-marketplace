@@ -5,58 +5,10 @@
   },
   "plugins": [
     {
-      "name": "agent-handoff",
-      "source": {
-        "source": "local",
-        "path": "./plugins/agent-handoff"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "building-plugins",
-      "source": {
-        "source": "local",
-        "path": "./plugins/building-plugins"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "contributing-upstream",
-      "source": {
-        "source": "local",
-        "path": "./plugins/contributing-upstream"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Productivity"
-    },
-    {
       "name": "explainer",
       "source": {
         "source": "local",
         "path": "./plugins/explainer"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_USE"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "mermaid-diagrams",
-      "source": {
-        "source": "local",
-        "path": "./plugins/mermaid-diagrams"
       },
       "policy": {
         "installation": "AVAILABLE",

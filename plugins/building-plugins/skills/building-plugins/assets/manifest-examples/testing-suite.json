@@ -1,9 +1,0 @@
-{
-  "name": "react-testing-suite",
-  "version": "1.0.0",
-  "description": "Playwright testing patterns and automation for React projects",
-  "author": "QA Team",
-  "repository": "https://github.com/acme/react-testing",
-  "license": "MIT",
-  "keywords": ["react", "testing", "playwright", "e2e", "automation"]
-}
